@@ -71,7 +71,7 @@ blockchain_voting_system/
 │   ├── deploy_sbt_system.js        # SBT 시스템 배포 스크립트
 │   ├── deploy.env.example          # 배포 설정 템플릿 (투표 일정, 후보)
 │   ├── setup_and_deploy.sh         # 통합 배포 자동화
-│   ├── redeploy_sbt_system.sh      # 재배포 스크립트
+│   ├── redeploy_contract.sh      # 재배포 스크립트
 │   ├── artifacts/
 │   │   └── sbt_deployment.json     # 배포 정보 (주소, ABI)
 │   └── monitoring/                 # 벤치마크 도구 (선택사항)
@@ -212,7 +212,7 @@ cp deploy.env.example deploy.env
 nano deploy.env  # 투표 일정, 후보자 수정
 
 # 2. 재배포
-./scripts/redeploy_sbt_system.sh
+./scripts/redeploy_contract.sh
 ```
 
 **deploy.env 주요 설정:**
@@ -278,7 +278,7 @@ cat blockchain_contracts/artifacts/sbt_deployment.json | grep -A 2 "CitizenSBT"
 ### 배포 & 자동화
 - `blockchain_contracts/scripts/deploy_sbt_system.js`: SBT 시스템 배포
 - `blockchain_contracts/scripts/setup_and_deploy.sh`: 통합 배포 자동화
-- `blockchain_contracts/scripts/redeploy_sbt_system.sh`: 재배포 스크립트
+- `blockchain_contracts/scripts/redeploy_contract.sh`: 재배포 스크립트
 - `blockchain_contracts/deploy.env.example`: 배포 설정 템플릿
 
 ### 프론트엔드

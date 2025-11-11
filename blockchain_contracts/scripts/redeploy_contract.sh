@@ -1,18 +1,67 @@
 #!/bin/bash
 
-# 투표 컨트랙트 재배포 스크립트
-# 네트워크는 실행 중인 상태에서 컨트랙트만 새로 배포합니다
+# 컨트랙트 재배포 스크립트
+# CitizenSBT, VotingRewardNFT, VotingWithSBT를 모두 재배포합니다
 
 set -e
 
 echo "========================================"
-echo "투표 컨트랙트 재배포 시작"
+echo "컨트랙트 재배포 시작"
 echo "========================================"
 echo ""
 
 # 현재 디렉토리 확인
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+BLOCKCHAIN_CONTRACTS_DIR="$(realpath "${SCRIPT_DIR}/..")"
+cd "$BLOCKCHAIN_CONTRACTS_DIR"
+
+# deploy.env 파일 로드
+if [ -f "deploy.env" ]; then
+    echo "📄 deploy.env 파일 로드 중..."
+    # Export all variables from deploy.env
+    set -a
+    source deploy.env
+    set +a
+    
+    # Helper function to convert date string to Unix timestamp in nanoseconds
+    date_to_timestamp() {
+        local input="$1"
+        # If already a number (Unix timestamp)
+        if [[ "$input" =~ ^[0-9]+$ ]]; then
+            # Check if it's in seconds (< year 2286) or nanoseconds
+            if [[ ${#input} -le 10 ]]; then
+                # It's in seconds, convert to nanoseconds
+                echo "${input}000000000"
+            else
+                # Already in nanoseconds
+                echo "$input"
+            fi
+        else
+            # Convert date string to Unix timestamp in nanoseconds
+            local seconds
+            seconds=$(date -d "$input" +%s 2>/dev/null || echo "")
+            if [[ -n "$seconds" ]]; then
+                echo "${seconds}000000000"
+            else
+                echo "$input"
+            fi
+        fi
+    }
+    
+    # Convert timestamp variables if they exist
+    if [ -n "${BALLOT_OPENS_AT:-}" ]; then
+        export BALLOT_OPENS_AT=$(date_to_timestamp "$BALLOT_OPENS_AT")
+    fi
+    if [ -n "${BALLOT_CLOSES_AT:-}" ]; then
+        export BALLOT_CLOSES_AT=$(date_to_timestamp "$BALLOT_CLOSES_AT")
+    fi
+    if [ -n "${BALLOT_ANNOUNCES_AT:-}" ]; then
+        export BALLOT_ANNOUNCES_AT=$(date_to_timestamp "$BALLOT_ANNOUNCES_AT")
+    fi
+    
+    echo "✅ 환경 변수 로드 완료"
+    echo ""
+fi
 
 # 네트워크 상태 확인
 echo "🔍 네트워크 상태 확인 중..."
@@ -24,7 +73,7 @@ fi
 
 # RPC 연결 확인
 echo "🔗 RPC 연결 확인 중..."
-if ! curl -s -X POST http://localhost:10545 \
+if ! curl -s -X POST http://localhost:9545 \
     -H "Content-Type: application/json" \
     --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
     > /dev/null 2>&1; then
@@ -35,55 +84,21 @@ echo "✅ RPC 연결 성공"
 echo ""
 
 # 기존 deployment 백업
-if [ -f "artifacts/deployment.json" ]; then
-    BACKUP_FILE="artifacts/deployment.backup.$(date +%s).json"
-    echo "📦 기존 배포 정보 백업: $BACKUP_FILE"
-    cp artifacts/deployment.json "$BACKUP_FILE"
+if [ -f "artifacts/sbt_deployment.json" ]; then
+    BACKUP_FILE="artifacts/sbt_deployment.backup.$(date +%s).json"
+    echo "📦 기존 SBT 배포 정보 백업: $BACKUP_FILE"
+    cp artifacts/sbt_deployment.json "$BACKUP_FILE"
     echo ""
 fi
 
-# deploy.env 파일 로드
-if [ ! -f "deploy.env" ]; then
-    echo "❌ 오류: deploy.env 파일을 찾을 수 없습니다."
-    exit 1
-fi
-
-echo "📄 deploy.env 설정 로드 중..."
-# 환경 변수를 export하여 Node.js 프로세스에 전달
-set -a  # 자동으로 모든 변수를 export
-source deploy.env
-set +a  # export 자동 설정 해제
-
-# ISO 8601 날짜를 나노초 타임스탬프로 변환
-if [ -n "$BALLOT_OPENS_AT" ]; then
-    OPENS_TIMESTAMP=$(date -d "$BALLOT_OPENS_AT" +%s)
-    export BALLOT_OPENS_AT="${OPENS_TIMESTAMP}000000000"
-fi
-
-if [ -n "$BALLOT_CLOSES_AT" ]; then
-    CLOSES_TIMESTAMP=$(date -d "$BALLOT_CLOSES_AT" +%s)
-    export BALLOT_CLOSES_AT="${CLOSES_TIMESTAMP}000000000"
-fi
-
-if [ -n "$BALLOT_ANNOUNCES_AT" ]; then
-    ANNOUNCES_TIMESTAMP=$(date -d "$BALLOT_ANNOUNCES_AT" +%s)
-    export BALLOT_ANNOUNCES_AT="${ANNOUNCES_TIMESTAMP}000000000"
-fi
-
-echo "📝 투표 정보 (deploy.env):"
-echo "  ID: $BALLOT_ID"
-echo "  제목: $BALLOT_TITLE"
-echo "  설명: $BALLOT_DESCRIPTION"
-echo "  투표 시작: $(date -d "$BALLOT_OPENS_AT" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo $BALLOT_OPENS_AT)"
-echo "  투표 종료: $(date -d "$BALLOT_CLOSES_AT" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo $BALLOT_CLOSES_AT)"
-echo "  결과 발표: $(date -d "$BALLOT_ANNOUNCES_AT" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo $BALLOT_ANNOUNCES_AT)"
-echo "  예상 투표자: $BALLOT_EXPECTED_VOTERS"
-echo "  후보: $PROPOSALS"
+# SBT 시스템 배포
+echo "🚀 SBT 시스템 배포 중..."
+echo "  - CitizenSBT (신원 SBT)"
+echo "  - VotingRewardNFT (보상 NFT)"
+echo "  - VotingWithSBT (투표 컨트랙트)"
 echo ""
 
-# 컨트랙트 배포
-echo "🚀 투표 컨트랙트 배포 중..."
-node deploy_contract.js
+node "${SCRIPT_DIR}/deploy_sbt_system.js"
 
 if [ $? -eq 0 ]; then
     echo ""
@@ -93,13 +108,22 @@ if [ $? -eq 0 ]; then
     echo ""
     
     # 배포 정보 출력
-    if [ -f "artifacts/deployment.json" ]; then
+    if [ -f "artifacts/sbt_deployment.json" ]; then
         echo "📄 배포 정보:"
-        echo "  파일: artifacts/deployment.json"
+        echo "  파일: artifacts/sbt_deployment.json"
         
         # 컨트랙트 주소 추출
-        CONTRACT_ADDRESS=$(node -pe "JSON.parse(require('fs').readFileSync('artifacts/deployment.json', 'utf8')).contract.address")
-        echo "  컨트랙트 주소: $CONTRACT_ADDRESS"
+        CITIZEN_SBT=$(node -pe "JSON.parse(require('fs').readFileSync('artifacts/sbt_deployment.json', 'utf8')).contracts.CitizenSBT.address")
+        REWARD_NFT=$(node -pe "JSON.parse(require('fs').readFileSync('artifacts/sbt_deployment.json', 'utf8')).contracts.VotingRewardNFT.address")
+        VOTING_CONTRACT=$(node -pe "JSON.parse(require('fs').readFileSync('artifacts/sbt_deployment.json', 'utf8')).contracts.VotingWithSBT.address")
+        VERIFIER=$(node -pe "JSON.parse(require('fs').readFileSync('artifacts/sbt_deployment.json', 'utf8')).contracts.CitizenSBT.verifier")
+        
+        echo ""
+        echo "📍 배포된 컨트랙트 주소:"
+        echo "  CitizenSBT:        $CITIZEN_SBT"
+        echo "  VotingRewardNFT:   $REWARD_NFT"
+        echo "  VotingWithSBT:     $VOTING_CONTRACT"
+        echo "  Verifier:          $VERIFIER"
         echo ""
         
         # 프론트엔드 .env.local 업데이트
@@ -111,12 +135,19 @@ if [ $? -eq 0 ]; then
             cp "$FRONTEND_ENV" "${FRONTEND_ENV}.backup.$(date +%s)"
             
             # .env.local 업데이트
-            sed -i "s|REACT_APP_VOTING_ADDRESS=.*|REACT_APP_VOTING_ADDRESS=$CONTRACT_ADDRESS|g" "$FRONTEND_ENV"
-            sed -i "s|REACT_APP_EXPECTED_VOTERS=.*|REACT_APP_EXPECTED_VOTERS=$BALLOT_EXPECTED_VOTERS|g" "$FRONTEND_ENV"
+            sed -i "s|REACT_APP_CITIZEN_SBT_ADDRESS=.*|REACT_APP_CITIZEN_SBT_ADDRESS=$CITIZEN_SBT|g" "$FRONTEND_ENV"
+            sed -i "s|REACT_APP_VOTING_CONTRACT_ADDRESS=.*|REACT_APP_VOTING_CONTRACT_ADDRESS=$VOTING_CONTRACT|g" "$FRONTEND_ENV"
+            sed -i "s|REACT_APP_REWARD_NFT_ADDRESS=.*|REACT_APP_REWARD_NFT_ADDRESS=$REWARD_NFT|g" "$FRONTEND_ENV"
+            sed -i "s|REACT_APP_VERIFIER_ADDRESS=.*|REACT_APP_VERIFIER_ADDRESS=$VERIFIER|g" "$FRONTEND_ENV"
             
             echo "✅ 프론트엔드 설정 업데이트 완료"
             echo "  파일: $FRONTEND_ENV"
-            echo "  새 컨트랙트 주소: $CONTRACT_ADDRESS"
+            echo ""
+            echo "  새 주소:"
+            echo "    CITIZEN_SBT:     $CITIZEN_SBT"
+            echo "    VOTING_CONTRACT: $VOTING_CONTRACT"
+            echo "    REWARD_NFT:      $REWARD_NFT"
+            echo "    VERIFIER:        $VERIFIER"
             echo ""
             echo "⚠️  프론트엔드를 재시작해야 변경사항이 적용됩니다:"
             echo "  cd ../frontend && npm start"
@@ -127,13 +158,11 @@ if [ $? -eq 0 ]; then
             echo ""
         fi
         
-        echo "💡 다음 명령으로 투표 상태를 확인할 수 있습니다:"
-        echo "  node check_vote.js"
+        echo "💡 SBT 시스템 테스트:"
+        echo "  node verify_sbt.js              # SBT 발급 테스트"
+        echo "  node test_vote_with_sbt.js      # SBT 투표 테스트"
+        echo "  node test_edge_cases.js         # 엣지 케이스 테스트"
         echo ""
-        echo "💡 투표하기:"
-        echo "  node cast_vote.js --proposal 0  # 노무현"
-        echo "  node cast_vote.js --proposal 1  # 문재인"
-        echo "  node cast_vote.js --proposal 2  # 이재명"
     fi
 else
     echo ""
