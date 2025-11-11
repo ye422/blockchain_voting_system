@@ -12,7 +12,8 @@ const path = require('path');
 const solc = require('solc');
 const Web3 = require('web3');
 
-const PROJECT_ROOT = __dirname;
+const SCRIPT_DIR = __dirname;
+const PROJECT_ROOT = path.resolve(SCRIPT_DIR, '..');
 const CONTRACTS_DIR = path.join(PROJECT_ROOT, 'contracts');
 
 // Contract configurations
