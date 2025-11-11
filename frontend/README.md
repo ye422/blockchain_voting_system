@@ -20,7 +20,7 @@ React 기반의 Agora 투표 UI는 GoQuorum 네트워크에 배포된 `VotingWit
 
 | 키 | 설명 | 기본값 |
 | --- | --- | --- |
-| `REACT_APP_RPC` | GoQuorum JSON-RPC 엔드포인트 | `http://localhost:10545` |
+| `REACT_APP_RPC` | GoQuorum JSON-RPC 엔드포인트 | `http://localhost:9545` |
 | `REACT_APP_VOTING_ADDRESS` | 배포된 `VotingWithNFT` 컨트랙트 주소 | 배포 결과 자동 입력 |
 | `REACT_APP_EXPECTED_VOTERS` | 투표율 계산 시 사용할 기준 인원 | `1000` |
 | `REACT_APP_CHAIN_ID` | 예상 체인 ID(16진수) | `0x539` |
@@ -34,6 +34,6 @@ React 기반의 Agora 투표 UI는 GoQuorum 네트워크에 배포된 `VotingWit
 - `npm test`: CRA 테스트 러너 실행.
 
 ## 문제 해결
-- **지갑이 감지되지 않는 경우**: MetaMask 또는 호환 지갑을 설치하고 `http://localhost:10545` RPC와 체인 ID `1337 (0x539)`을 등록하세요.
+- **지갑이 감지되지 않는 경우**: MetaMask 또는 호환 지갑을 설치하고 `http://localhost:9545` RPC와 체인 ID `1337 (0x539)`을 등록하세요.
 - **잘못된 체인 경고**: `.env.local`의 `REACT_APP_CHAIN_ID`가 실제 메타마스크 네트워크와 일치하는지 확인하세요.
 - **컨트랙트 주소 미설정 오류**: `quorum-lab/artifacts/deployment.json`에서 `contract.address`를 복사해 `REACT_APP_VOTING_ADDRESS`에 넣거나, 배포 스크립트를 다시 실행해 자동으로 동기화하세요.
