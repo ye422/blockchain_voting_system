@@ -211,7 +211,7 @@ Currency Symbol: ETH
 **Objective**: Handle blockchain connectivity issues
 
 **Steps**:
-1. Stop Quorum network: `cd quorum-test-network && ./stop.sh`
+1. Stop Quorum network: `cd network && ./stop.sh`
 2. Open `http://localhost:3000`
 3. Connect wallet
 4. Try to check SBT status

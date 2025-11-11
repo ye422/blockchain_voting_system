@@ -5,7 +5,7 @@
 ## 한 줄 개요
 
 - 목적: Quorum 테스트 네트워크를 사용한 블록체인 투표 웹앱 실행
-- 아키텍처: Docker 기반 GoQuorum 네트워크(`quorum-test-network`) + SBT 기반 컨트랙트 시스템(`quorum-lab`) + React UI(`frontend`)
+- 아키텍처: Docker 기반 GoQuorum 네트워크(`network`) + SBT 기반 컨트랙트 시스템(`blockchain_contracts`) + React UI(`frontend`)
 - 스마트컨트랙트 3종: `CitizenSBT.sol` (신원검증), `VotingWithSBT.sol` (투표), `VotingRewardNFT.sol` (리워드)
 
 ## 핵심 실행 흐름 (개발자 워크플로우)
@@ -14,15 +14,15 @@
 `./setup_and_deploy.sh`가 네트워크 시작, 컨트랙트 배포, 프론트엔드 환경 구성을 모두 처리합니다.
 
 ```bash
-cd quorum-lab
+cd blockchain_contracts
 ./setup_and_deploy.sh
 ```
 
 이 스크립트가 자동으로:
-1. Quorum 네트워크 상태 확인 (없으면 `quorum-test-network`에서 Docker 컨테이너 시작)
+1. Quorum 네트워크 상태 확인 (없으면 `network`에서 Docker 컨테이너 시작)
 2. Node.js & Python 의존성 확인
 3. 3개 컨트랙트 배포 (CitizenSBT, VotingWithSBT, VotingRewardNFT)
-4. 배포 결과 저장: `quorum-lab/artifacts/sbt_deployment.json`
+4. 배포 결과 저장: `blockchain_contracts/artifacts/sbt_deployment.json`
 5. ABI 동기화: `frontend/src/abi/` 에 JSON 복사
 6. 프론트엔드 환경 파일 자동 생성/갱신: `frontend/.env` 및 `.env.local`
 
@@ -36,7 +36,7 @@ npm start  # localhost:3000 에서 실행, MetaMask 연결 후 투표 진행
 ### 수동 배포 흐름 (고급)
 - 컨트랙트만 재배포: 
   ```bash
-  cd quorum-lab
+  cd blockchain_contracts
   cp deploy.env.example deploy.env  # 투표 일정, 후보 등 설정
   node deploy_sbt_system.js
   ```
@@ -71,7 +71,7 @@ npm start  # localhost:3000 에서 실행, MetaMask 연결 후 투표 진행
 - **환경변수 우선순위 예**: `deploy_sbt_system.js`는 `PROPOSALS`, `BALLOT_ID`, `BALLOT_TITLE`, `BALLOT_OPENS_AT` 등을 참고. `deploy.env`에서 설정하면 `setup_and_deploy.sh`가 읽음.
 
 ### ABI 및 아티팩트 동기화
-- **단일 소스 오브 트루스**: `quorum-lab/artifacts/sbt_deployment.json`
+- **단일 소스 오브 트루스**: `blockchain_contracts/artifacts/sbt_deployment.json`
   - 구조:
     ```json
     {
@@ -99,24 +99,24 @@ npm start  # localhost:3000 에서 실행, MetaMask 연결 후 투표 진행
 ## 변경/수정 시 주의사항 (안전 장치)
 
 1. **합의 알고리즘 변경**: 데이터 초기화(볼륨 삭제) 필수
-   - `cd quorum-test-network && docker-compose down -v` 후 `.env`에서 `GOQUORUM_CONS_ALGO` 변경 (raft/qbft/ibft)
+   - `cd network && docker-compose down -v` 후 `.env`에서 `GOQUORUM_CONS_ALGO` 변경 (raft/qbft/ibft)
    - 단순 재시작(`docker-compose restart`)으로는 genesis가 재적용되지 않음
 
-2. **컨트랙트 주소 관리**: 단일 소스 오브 트루스는 `quorum-lab/artifacts/sbt_deployment.json`
+2. **컨트랙트 주소 관리**: 단일 소스 오브 트루스는 `blockchain_contracts/artifacts/sbt_deployment.json`
    - 프론트엔드, 배포 스크립트, 환경 파일 모두 이 파일을 참고
    - 수동으로 여러 위치를 변경하지 말 것
 
 3. **배포 실패 시 확인 사항**:
    - RPC 접근 가능 여부: `curl -X POST http://localhost:9545 -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'`
    - 언락된 계정 확인: `node -e "const Web3 = require('web3'); const w3 = new Web3('http://localhost:9545'); w3.eth.getAccounts().then(console.log)"`
-   - 네트워크 상태: `cd quorum-test-network && docker-compose ps`
+   - 네트워크 상태: `cd network && docker-compose ps`
 
 ## 빠른 예시(작업 단위)
 
 ### 전체 시스템 처음부터 시작
 ```bash
 # 1. 네트워크 시작 + 컨트랙트 배포 + 환경 구성 (한 번에)
-cd quorum-lab
+cd blockchain_contracts
 ./setup_and_deploy.sh
 
 # 2. 프론트엔드 실행 (다른 터미널에서)
@@ -127,7 +127,7 @@ npm start  # localhost:3000 에서 실행
 
 ### 새 투표 이벤트 배포 (후보 또는 일정 변경)
 ```bash
-cd quorum-lab
+cd blockchain_contracts
 cp deploy.env.example deploy.env
 # deploy.env 편집: PROPOSALS, BALLOT_TITLE, BALLOT_OPENS_AT 등
 ./redeploy_sbt_system.sh  # 새 컨트랙트 배포 및 환경파일 갱신
@@ -144,16 +144,16 @@ npx serve -s build  # 배포용 빌드 로컬 테스트
 
 - 프로젝트 루트 README: `/README.md` (큰 그림과 실험 재현 방법)
 - 프론트엔드 실행 가이드: `/frontend/RUN_GUIDE.md` 및 `/frontend/package.json`
-- 배포 자동화 / 배포 템플릿: `/quorum-lab/setup_and_deploy.sh` (초기 배포), `/quorum-lab/redeploy_sbt_system.sh` (재배포), `/quorum-lab/deploy_sbt_system.js`, `/quorum-lab/deploy.env.example`
-- 네트워크 실행: `/quorum-test-network/docker-compose.yml`
-- 스마트컨트랙트 소스: `/quorum-lab/contracts/` (CitizenSBT.sol, VotingWithSBT.sol, VotingRewardNFT.sol)
-- 산출물/ABI: `/quorum-lab/artifacts/sbt_deployment.json`, `/frontend/src/abi/`
+- 배포 자동화 / 배포 템플릿: `/blockchain_contracts/setup_and_deploy.sh` (초기 배포), `/blockchain_contracts/redeploy_sbt_system.sh` (재배포), `/blockchain_contracts/deploy_sbt_system.js`, `/blockchain_contracts/deploy.env.example`
+- 네트워크 실행: `/network/docker-compose.yml`
+- 스마트컨트랙트 소스: `/blockchain_contracts/contracts/` (CitizenSBT.sol, VotingWithSBT.sol, VotingRewardNFT.sol)
+- 산출물/ABI: `/blockchain_contracts/artifacts/sbt_deployment.json`, `/frontend/src/abi/`
 
 ## 작업 제약 (AI 에이전트가 지켜야 할 룰)
 
 1. 변경 제안 시 항상 관련 환경 파일(`deploy.env`, `.env.local`)과 `artifacts/deployment.json`의 연계성을 검증할 것.
 2. 합의 알고리즘·네트워크 관련 변경(예: genesis, docker-compose)은 수동으로 진행하거나 사용자에게 사전 승인 요청을 할 것 — 데이터 초기화 위험이 있음.
-3. 프론트엔드/컨트랙트 간 주소/ABI 충돌을 막기 위해, 배포 이후에는 `quorum-lab/artifacts/deployment.json`을 단일 소스 오브 트루스로 사용할 것.
+3. 프론트엔드/컨트랙트 간 주소/ABI 충돌을 막기 위해, 배포 이후에는 `blockchain_contracts/artifacts/deployment.json`을 단일 소스 오브 트루스로 사용할 것.
 
 ## 피드백 요청
 

@@ -236,7 +236,7 @@ function MyComponent() {
 ### 1. 개발 환경 확인
 ```bash
 # Quorum 네트워크 실행 중인지 확인
-cd quorum-test-network
+cd network
 ./list.sh
 
 # 프론트엔드 개발 서버 실행

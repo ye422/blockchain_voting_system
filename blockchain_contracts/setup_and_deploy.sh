@@ -5,7 +5,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(realpath "${SCRIPT_DIR}/..")"
-NETWORK_DIR="${PROJECT_ROOT}/quorum-test-network"
+NETWORK_DIR="${PROJECT_ROOT}/network"
 ARTIFACTS_DIR="${SCRIPT_DIR}/artifacts"
 FRONTEND_DIR="${PROJECT_ROOT}/frontend"
 FRONTEND_ABI_DIR="${FRONTEND_DIR}/src/abi"
@@ -135,7 +135,7 @@ write_env_example() {
 # RPC endpoint for the local GoQuorum network
 REACT_APP_RPC=http://localhost:10545
 
-# Deployed VotingWithNFT contract address (from quorum-lab/artifacts/deployment.json)
+# Deployed VotingWithNFT contract address (from blockchain_contracts/artifacts/deployment.json)
 REACT_APP_VOTING_ADDRESS=<deployed-contract-address>
 
 # Optional expected voter turnout baseline (used for UI percentage)
@@ -195,7 +195,7 @@ sync_frontend_env_files() {
 # 1. 합의 알고리즘 확인
 echo -e "\n${YELLOW}[1/6] Checking consensus algorithm...${NC}"
 if [[ ! -f "${NETWORK_DIR}/.env" ]]; then
-    echo -e "${RED}✗ .env file not found in quorum-test-network/${NC}"
+    echo -e "${RED}✗ .env file not found in network/${NC}"
     echo -e "${YELLOW}Please copy .env.example or create .env file with GOQUORUM_CONS_ALGO${NC}"
     echo -e "${YELLOW}Example: GOQUORUM_CONS_ALGO=raft${NC}"
     exit 1
@@ -214,7 +214,7 @@ if [[ -f "${ARTIFACTS_DIR}/sbt_deployment.json" ]]; then
     if [[ -n "$LAST_CONSENSUS" ]] && [[ "$LAST_CONSENSUS" != "$CONSENSUS" ]]; then
         echo -e "${RED}⚠ WARNING: Consensus algorithm changed from ${LAST_CONSENSUS} to ${CONSENSUS}${NC}"
         echo -e "${YELLOW}You must reset the blockchain data:${NC}"
-        echo -e "${YELLOW}  cd quorum-test-network && docker-compose down -v && docker-compose up -d${NC}"
+        echo -e "${YELLOW}  cd network && docker-compose down -v && docker-compose up -d${NC}"
         echo -e "${YELLOW}Press Ctrl+C to abort, or wait 5 seconds to continue...${NC}"
         sleep 5
     fi
@@ -399,7 +399,7 @@ echo -e "${GREEN}VotingRewardNFT:${NC} $(node -p "require('${ARTIFACTS_DIR}/sbt_
 echo -e "${GREEN}Artifacts:${NC} ${ARTIFACTS_DIR}"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
-echo -e "  1. Test SBT system: ${GREEN}cd quorum-lab && node verify_sbt.js${NC}"
-echo -e "  2. Check network: ${GREEN}cd quorum-test-network && docker compose ps${NC}"
-echo -e "  3. View logs: ${GREEN}cd quorum-test-network && docker compose logs -f validator1${NC}"
+echo -e "  1. Test SBT system: ${GREEN}cd blockchain_contracts && node verify_sbt.js${NC}"
+echo -e "  2. Check network: ${GREEN}cd network && docker compose ps${NC}"
+echo -e "  3. View logs: ${GREEN}cd network && docker compose logs -f validator1${NC}"
 echo ""

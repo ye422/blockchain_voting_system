@@ -43,10 +43,10 @@ if [[ ! -z `docker ps -a | grep quorum-dev-quickstart_pet_shop` ]]; then
 fi
 
 if grep -q 'kibana:' docker-compose.yml 2> /dev/null ; then
-  docker image rm quorum-test-network_elasticsearch
-  docker image rm quorum-test-network_logstash
-  docker image rm quorum-test-network_filebeat
-  docker image rm quorum-test-network_metricbeat
+  docker image rm network_elasticsearch
+  docker image rm network_logstash
+  docker image rm network_filebeat
+  docker image rm network_metricbeat
 fi
 
 rm ${LOCK_FILE}

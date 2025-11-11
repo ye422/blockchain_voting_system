@@ -38,7 +38,7 @@
 - [ ] `.env` 파일의 컨트랙트 주소가 최신인지 확인
 
 ```bash
-cd quorum-test-network
+cd network
 ./list.sh  # 모든 노드가 실행 중인지 확인
 ```
 
@@ -181,7 +181,7 @@ cd quorum-test-network
 ### 2. IPFS 이미지 업로드
 - **현재 상태**: 수동으로 Pinata에 업로드
 - **TODO**: 자동화된 업로드 프로세스
-- **방법**: `quorum-lab/upload_to_ipfs.sh` 사용
+- **방법**: `blockchain_contracts/upload_to_ipfs.sh` 사용
 
 ### 3. 환경변수 문서화
 - **문제**: `.env.example`이 구 포트(10545) 참조
@@ -244,7 +244,7 @@ cd quorum-test-network
 3. ✅ `frontend/src/lib/sbt.ts` - NFT 메타데이터 로드 및 이미지 URL 처리
 4. ✅ `frontend/src/pages/MyNFTsPage.tsx` - NFT 상세 모달 추가
 5. ✅ `frontend/src/pages/MyNFTsPage.css` - 모달 스타일링
-6. ✅ `quorum-lab/deploy.env` - IPFS CID 설정
+6. ✅ `blockchain_contracts/deploy.env` - IPFS CID 설정
 
 ---
 

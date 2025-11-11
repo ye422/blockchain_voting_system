@@ -16,7 +16,7 @@ cd blockchain-test
 # - pip3
 
 # 3. 모든 설정 자동 실행 (네트워크 시작 + 의존성 설치 + 컨트랙트 배포)
-cd quorum-lab
+cd blockchain_contracts
 ./setup_and_deploy.sh
 
 # 4. 벤치마크 실행
@@ -35,10 +35,10 @@ cd quorum-lab
 
 ```
 blockchain-test/
-├── quorum-test-network/          # Quorum 테스트 네트워크 (실험에 사용)
+├── network/          # Quorum 테스트 네트워크 (실험에 사용)
 │   ├── docker-compose.yml        # 메인 compose 파일 (.env로 합의 알고리즘 선택)
 │   └── ...
-├── quorum-lab/                   # 실험 스크립트 및 결과
+├── blockchain_contracts/                   # 실험 스크립트 및 결과
 │   ├── contracts/VotingWithNFT.sol       # NFT 기반 투표 컨트랙트
 │   ├── deploy_contract.js                # 컨트랙트 배포 스크립트
 │   ├── deploy.env.example                # [신규] 배포 설정 템플릿
@@ -78,7 +78,7 @@ blockchain-test/
 ### 방법 1: 자동 설정 스크립트 (권장)
 
 ```bash
-cd quorum-lab
+cd blockchain_contracts
 
 # 네트워크 시작 + 스마트 컨트랙트 배포 (한 번에 처리)
 ./setup_and_deploy.sh
@@ -101,7 +101,7 @@ cd quorum-lab
 #### 2. 네트워크 실행
 
 ```bash
-cd quorum-test-network
+cd network
 
 # .env.example을 복사하여 .env 생성
 cp .env.example .env
@@ -124,7 +124,7 @@ docker compose ps
 #### 3. 스마트 컨트랙트 배포
 
 ```bash
-cd quorum-lab
+cd blockchain_contracts
 
 # Node.js 의존성 설치 (최초 1회)
 npm install solc@0.8.20 web3@1.10.2 @openzeppelin/contracts@5.0.0
@@ -133,7 +133,7 @@ npm install solc@0.8.20 web3@1.10.2 @openzeppelin/contracts@5.0.0
 node deploy_contract.js
 ```
 
-배포가 성공하면 `quorum-lab/artifacts/` 디렉토리에 deployment.json과 ABI 파일이 생성됩니다.
+배포가 성공하면 `blockchain_contracts/artifacts/` 디렉토리에 deployment.json과 ABI 파일이 생성됩니다.
 
 **참고**: 
 - 컨트랙트는 **블록체인에 영구 저장**되므로 한 번만 배포하면 됩니다
@@ -146,7 +146,7 @@ node deploy_contract.js
 네트워크는 유지한 채 새로운 컨트랙트를 배포하려면:
 
 ```bash
-cd quorum-lab
+cd blockchain_contracts
 
 # 1. deploy.env 파일 수정 (투표 시간, 후보자 등)
 cp deploy.env.example deploy.env
@@ -185,7 +185,7 @@ npm start
 #### 5. 벤치마크 실행
 
 ```bash
-cd quorum-lab
+cd blockchain_contracts
 
 # Python 의존성 설치
 pip install web3 eth-account python-dotenv
@@ -204,7 +204,7 @@ pip install web3 eth-account python-dotenv
 CLI로 투표를 테스트하려면:
 
 ```bash
-cd quorum-lab
+cd blockchain_contracts
 
 # 투표 상태 확인
 node check_vote.js
@@ -223,7 +223,7 @@ node debug_transaction.js
 각 합의 알고리즘은 서로 다른 genesis 파일(extraData 포함)을 사용합니다. 알고리즘을 변경할 때:
 
 ```bash
-cd quorum-test-network
+cd network
 
 # 1. 네트워크 중지 및 볼륨 삭제 (블록체인 데이터 완전 초기화)
 docker-compose down -v
@@ -235,7 +235,7 @@ sed -i 's/GOQUORUM_CONS_ALGO=.*/GOQUORUM_CONS_ALGO=raft/' .env
 docker-compose up -d
 
 # 4. 스마트 컨트랙트 재배포
-cd ../quorum-lab
+cd ../blockchain_contracts
 node deploy_contract.js
 ```
 
@@ -274,30 +274,30 @@ test_result/
 - `frontend/src/App.css`: UI 스타일링 (당선자 배지 포함)
 
 ### 스마트 컨트랙트 & 배포
-- `quorum-lab/contracts/VotingWithNFT.sol`: NFT 기반 투표 컨트랙트
-- `quorum-lab/deploy_contract.js`: 컨트랙트 배포 스크립트
-- `quorum-lab/deploy.env.example`: 배포 설정 템플릿
-- `quorum-lab/redeploy_contract.sh`: 컨트랙트 재배포 자동화
-- `quorum-lab/setup_and_deploy.sh`: 네트워크 시작 + 배포 자동화
+- `blockchain_contracts/contracts/VotingWithNFT.sol`: NFT 기반 투표 컨트랙트
+- `blockchain_contracts/deploy_contract.js`: 컨트랙트 배포 스크립트
+- `blockchain_contracts/deploy.env.example`: 배포 설정 템플릿
+- `blockchain_contracts/redeploy_contract.sh`: 컨트랙트 재배포 자동화
+- `blockchain_contracts/setup_and_deploy.sh`: 네트워크 시작 + 배포 자동화
 
 ### 투표 도구
-- `quorum-lab/cast_vote.js`: 투표 트랜잭션 전송
-- `quorum-lab/check_vote.js`: 투표 상태 및 메타데이터 확인
-- `quorum-lab/debug_transaction.js`: 트랜잭션 디버깅
+- `blockchain_contracts/cast_vote.js`: 투표 트랜잭션 전송
+- `blockchain_contracts/check_vote.js`: 투표 상태 및 메타데이터 확인
+- `blockchain_contracts/debug_transaction.js`: 트랜잭션 디버깅
 
 ### 벤치마크 스크립트
-- `quorum-lab/benchmark.py`: 성능 측정 메인 스크립트
-- `quorum-lab/run_raft_benchmarks.sh`: Raft 벤치마크 자동화
-- `quorum-lab/run_qbft_benchmarks.sh`: QBFT 벤치마크 자동화
-- `quorum-lab/check_nft_receipt.py`: NFT 트랜잭션 검증
-- `quorum-lab/check_csv_results.py`: CSV 결과 분석
+- `blockchain_contracts/benchmark.py`: 성능 측정 메인 스크립트
+- `blockchain_contracts/run_raft_benchmarks.sh`: Raft 벤치마크 자동화
+- `blockchain_contracts/run_qbft_benchmarks.sh`: QBFT 벤치마크 자동화
+- `blockchain_contracts/check_nft_receipt.py`: NFT 트랜잭션 검증
+- `blockchain_contracts/check_csv_results.py`: CSV 결과 분석
 
 ### 디버깅 도구
-- `quorum-lab/diagnose.js`: 종합 진단
-- `quorum-lab/check_time.js`: 블록체인 시간 확인
-- `quorum-lab/check_ballot_times.py`: 투표 시간 검증
-- `quorum-lab/fix_ballot_schedule.js`: 투표 일정 수정
-- `quorum-lab/test_ballot_metadata.js`: 메타데이터 테스트
+- `blockchain_contracts/diagnose.js`: 종합 진단
+- `blockchain_contracts/check_time.js`: 블록체인 시간 확인
+- `blockchain_contracts/check_ballot_times.py`: 투표 시간 검증
+- `blockchain_contracts/fix_ballot_schedule.js`: 투표 일정 수정
+- `blockchain_contracts/test_ballot_metadata.js`: 메타데이터 테스트
 
 ## 📝 실험 설정
 
@@ -312,7 +312,7 @@ test_result/
 
 ### 네트워크 재시작
 ```bash
-cd quorum-test-network
+cd network
 docker compose down -v
 docker compose up -d
 ```
@@ -325,9 +325,9 @@ docker compose logs -f [서비스명]
 
 ### 완전 초기화 후 재시작
 ```bash
-cd quorum-test-network
+cd network
 docker compose down -v  # 볼륨까지 삭제
-cd ../quorum-lab
+cd ../blockchain_contracts
 ./setup_and_deploy.sh   # 자동으로 재배포 포함
 ```
 
@@ -341,10 +341,10 @@ cd ../quorum-lab
 - [ ] Node.js 설치 확인: `node --version`
 - [ ] pip3 설치 확인: `pip3 --version`
 - [ ] 저장소 클론: `git clone https://github.com/capstone-design2-agora/blockchain-test.git`
-- [ ] 설정 스크립트 실행: `cd quorum-lab && ./setup_and_deploy.sh`
-- [ ] 네트워크 상태 확인: `cd quorum-test-network && docker compose ps`
-- [ ] 컨트랙트 주소 확인: `cat quorum-lab/artifacts/deployment.json | grep address`
-- [ ] 벤치마크 실행: `cd quorum-lab && ./run_raft_benchmarks.sh`
+- [ ] 설정 스크립트 실행: `cd blockchain_contracts && ./setup_and_deploy.sh`
+- [ ] 네트워크 상태 확인: `cd network && docker compose ps`
+- [ ] 컨트랙트 주소 확인: `cat blockchain_contracts/artifacts/deployment.json | grep address`
+- [ ] 벤치마크 실행: `cd blockchain_contracts && ./run_raft_benchmarks.sh`
 
 모든 체크리스트가 통과하면 실험 재현 성공! ✨
 
@@ -358,7 +358,7 @@ cd ../quorum-lab
 
 - **Quorum Dev Quickstart** (ConsenSys) - Apache-2.0 License
   - Repository: https://github.com/ConsenSys/quorum-dev-quickstart
-  - Used: `quorum-test-network/`, `quorum-besu-network/` 디렉토리
+  - Used: `network/`, `quorum-besu-network/` 디렉토리
   - 원본 코드에서 수정: Docker 설정, 네트워크 구성
 
 - **OpenZeppelin Contracts** - MIT License
@@ -368,9 +368,9 @@ cd ../quorum-lab
 ### 우리의 기여
 
 이 저장소에서 추가한 원본 작업:
-- NFT 기반 투표 스마트 컨트랙트 (`quorum-lab/contracts/VotingWithNFT.sol`)
-- 성능 벤치마크 도구 (`quorum-lab/benchmark.py`, `run_*_benchmarks.sh`)
-- 자동화 스크립트 (`quorum-lab/setup_and_deploy.sh`, `deploy_contract.js`)
+- NFT 기반 투표 스마트 컨트랙트 (`blockchain_contracts/contracts/VotingWithNFT.sol`)
+- 성능 벤치마크 도구 (`blockchain_contracts/benchmark.py`, `run_*_benchmarks.sh`)
+- 자동화 스크립트 (`blockchain_contracts/setup_and_deploy.sh`, `deploy_contract.js`)
 - 실험 결과 및 분석 (`test_result/`, `BENCHMARK_ANALYSIS_REPORT.md`)
 - 문서화 (이 README 및 관련 가이드)
 

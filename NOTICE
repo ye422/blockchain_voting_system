@@ -12,7 +12,7 @@ Licensed under the Apache License, Version 2.0
 Original source: https://github.com/ConsenSys/quorum-dev-quickstart
 
 The following directories contain code from Quorum Dev Quickstart:
-- quorum-test-network/
+- network/
 - quorum-besu-network/
 
 Modifications made:
@@ -31,7 +31,7 @@ Licensed under the MIT License
 Original source: https://github.com/OpenZeppelin/openzeppelin-contracts
 
 Used in:
-- quorum-lab/contracts/VotingWithNFT.sol (ERC-721 implementation)
+- blockchain_contracts/contracts/VotingWithNFT.sol (ERC-721 implementation)
 
 ================================================================================
 
@@ -41,16 +41,16 @@ Our Original Contributions
 The following components are original work created for this research project:
 
 Smart Contracts & Deployment:
-- quorum-lab/contracts/VotingWithNFT.sol
-- quorum-lab/deploy_contract.js
-- quorum-lab/setup_and_deploy.sh
+- blockchain_contracts/contracts/VotingWithNFT.sol
+- blockchain_contracts/deploy_contract.js
+- blockchain_contracts/setup_and_deploy.sh
 
 Benchmarking System:
-- quorum-lab/benchmark.py
-- quorum-lab/run_raft_benchmarks.sh
-- quorum-lab/run_qbft_benchmarks.sh
-- quorum-lab/check_nft_receipt.py
-- quorum-lab/check_csv_results.py
+- blockchain_contracts/benchmark.py
+- blockchain_contracts/run_raft_benchmarks.sh
+- blockchain_contracts/run_qbft_benchmarks.sh
+- blockchain_contracts/check_nft_receipt.py
+- blockchain_contracts/check_csv_results.py
 
 Documentation & Results:
 - README.md (this file)

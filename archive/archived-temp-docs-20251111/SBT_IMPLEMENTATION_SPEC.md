@@ -281,16 +281,16 @@ User → Check SBT → Vote → Receive Reward NFT → View in Collection
 - [x] Implement CitizenSBT contract (Solidity 0.8.20)
 - [x] Implement VotingRewardNFT contract with mascot support
 - [x] Update VotingWithSBT contract with SBT integration
-- [x] Write unit tests (test scripts in quorum-lab/)
+- [x] Write unit tests (test scripts in blockchain_contracts/)
 - [x] Deploy to test network (deployment scripts ready)
 - [x] RPC port migration (10545 → 9545)
 
 **Files Created:**
-- `quorum-lab/contracts/CitizenSBT.sol` - Soulbound identity token
-- `quorum-lab/contracts/VotingRewardNFT.sol` - Transferable reward NFT
-- `quorum-lab/contracts/VotingWithSBT.sol` - Updated voting contract
-- `quorum-lab/deploy_sbt_system.js` - Automated deployment script
-- `quorum-lab/test_vote_with_sbt.js` - Integration test script
+- `blockchain_contracts/contracts/CitizenSBT.sol` - Soulbound identity token
+- `blockchain_contracts/contracts/VotingRewardNFT.sol` - Transferable reward NFT
+- `blockchain_contracts/contracts/VotingWithSBT.sol` - Updated voting contract
+- `blockchain_contracts/deploy_sbt_system.js` - Automated deployment script
+- `blockchain_contracts/test_vote_with_sbt.js` - Integration test script
 
 ### Phase 2: Frontend - Auth Flow ✅ COMPLETED
 - [x] Create AuthPage component with modern UI
@@ -459,11 +459,11 @@ User → Check SBT → Vote → Receive Reward NFT → View in Collection
 #### 4. Network Configuration ✅
 - **Change**: RPC 포트 10545 → 9545로 표준화
 - **Files Updated**:
-  - `quorum-test-network/docker-compose.yml`
+  - `network/docker-compose.yml`
   - `quorum-besu-network/docker-compose.yml`
-  - `quorum-lab/deploy_sbt_system.js`
-  - `quorum-lab/redeploy_sbt_system.sh`
-  - `quorum-lab/setup_and_deploy.sh`
+  - `blockchain_contracts/deploy_sbt_system.js`
+  - `blockchain_contracts/redeploy_sbt_system.sh`
+  - `blockchain_contracts/setup_and_deploy.sh`
 - **Result**: 일관된 네트워크 설정
 
 ## Known Issues & Solutions
@@ -508,7 +508,7 @@ cd quorum-besu-network
 ./run.sh
 
 # 2. Deploy contracts
-cd ../quorum-lab
+cd ../blockchain_contracts
 npm install
 ./redeploy_sbt_system.sh
 
@@ -521,10 +521,10 @@ npm start
 ### Debugging Smart Contracts
 ```bash
 # Check deployment
-node -e "console.log(require('./quorum-lab/deployed_addresses.json'))"
+node -e "console.log(require('./blockchain_contracts/deployed_addresses.json'))"
 
 # Test SBT system
-cd quorum-lab
+cd blockchain_contracts
 node test_vote_with_sbt.js
 
 # Check transaction
@@ -663,7 +663,7 @@ blockchain-test/
 │   │   └── abi/
 │   │       ├── CitizenSBT.json  (new)
 │   │       └── VotingRewardNFT.json (new)
-└── quorum-lab/
+└── blockchain_contracts/
     ├── deploy_sbt.js            (new)
     └── test_sbt.js              (new)
 ```

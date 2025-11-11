@@ -30,7 +30,7 @@ This project is based on and includes components from:
 - Copyright (c) ConsenSys Software Inc.
 - License: Apache-2.0
 - Repository: https://github.com/ConsenSys/quorum-dev-quickstart
-- Used components: quorum-test-network/ and quorum-besu-network/ directories
+- Used components: network/ and quorum-besu-network/ directories
 
 The Apache License 2.0 is compatible with the MIT License, allowing us to:
 - Use the code

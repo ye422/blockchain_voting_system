@@ -3,7 +3,7 @@
 React 기반의 Agora 투표 UI는 GoQuorum 네트워크에 배포된 `VotingWithNFT` 컨트랙트와 직접 통신합니다. 아래 순서를 따르면 환경 변수 설정과 실행을 한 번에 끝낼 수 있습니다.
 
 ## 빠른 시작
-1. 루트에서 `./quorum-lab/setup_and_deploy.sh`를 실행하면 네트워크 부팅, 컨트랙트 배포, ABI 복사, `.env`/`.env.local` 동기화가 자동으로 진행됩니다.
+1. 루트에서 `./blockchain_contracts/setup_and_deploy.sh`를 실행하면 네트워크 부팅, 컨트랙트 배포, ABI 복사, `.env`/`.env.local` 동기화가 자동으로 진행됩니다.
 2. 프런트엔드 디렉터리로 이동해 의존성을 설치합니다.
    ```bash
    cd frontend
@@ -36,4 +36,4 @@ React 기반의 Agora 투표 UI는 GoQuorum 네트워크에 배포된 `VotingWit
 ## 문제 해결
 - **지갑이 감지되지 않는 경우**: MetaMask 또는 호환 지갑을 설치하고 `http://localhost:9545` RPC와 체인 ID `1337 (0x539)`을 등록하세요.
 - **잘못된 체인 경고**: `.env.local`의 `REACT_APP_CHAIN_ID`가 실제 메타마스크 네트워크와 일치하는지 확인하세요.
-- **컨트랙트 주소 미설정 오류**: `quorum-lab/artifacts/deployment.json`에서 `contract.address`를 복사해 `REACT_APP_VOTING_ADDRESS`에 넣거나, 배포 스크립트를 다시 실행해 자동으로 동기화하세요.
+- **컨트랙트 주소 미설정 오류**: `blockchain_contracts/artifacts/deployment.json`에서 `contract.address`를 복사해 `REACT_APP_VOTING_ADDRESS`에 넣거나, 배포 스크립트를 다시 실행해 자동으로 동기화하세요.

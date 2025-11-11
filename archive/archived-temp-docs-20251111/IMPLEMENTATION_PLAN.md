@@ -3,9 +3,9 @@
 This plan converts the findings from the repository review into actionable implementation steps so the React frontend can interact reliably with the Quorum voting network and smart contract.
 
 ## 1. Synchronize On-Chain Artifacts
-1. Run `quorum-lab/setup_and_deploy.sh` to ensure the desired consensus network is running and the `VotingWithNFT` contract is deployed.
-2. Copy `quorum-lab/artifacts/VotingWithNFT.abi.json` to `frontend/src/abi/Voting.json` whenever the contract is recompiled so the ABI stays in lockstep with the running chain.
-3. Record the deployed address and chain metadata from `quorum-lab/artifacts/deployment.json` for later environment configuration and documentation updates.
+1. Run `blockchain_contracts/setup_and_deploy.sh` to ensure the desired consensus network is running and the `VotingWithNFT` contract is deployed.
+2. Copy `blockchain_contracts/artifacts/VotingWithNFT.abi.json` to `frontend/src/abi/Voting.json` whenever the contract is recompiled so the ABI stays in lockstep with the running chain.
+3. Record the deployed address and chain metadata from `blockchain_contracts/artifacts/deployment.json` for later environment configuration and documentation updates.
 
 ## 2. Frontend Environment Configuration
 1. Create `frontend/.env.example` (or update it if it already exists) with the following keys and inline comments:
@@ -32,7 +32,7 @@ This plan converts the findings from the repository review into actionable imple
 
 ## 5. Testing & Verification
 1. Add a Cypress or React Testing Library smoke test that stubs `window.ethereum` and asserts the wallet flow (connect → vote button enabled → disconnect resets state).
-2. Provide a CLI recipe in the docs for `quorum-lab/check_nft_receipt.py <address>` so operators can cross-check NFT receipts out-of-band.
+2. Provide a CLI recipe in the docs for `blockchain_contracts/check_nft_receipt.py <address>` so operators can cross-check NFT receipts out-of-band.
 3. Document manual QA: connect Metamask (chain ID 1337), import `rpcnode` key, perform a vote, confirm totals refresh, and validate the NFT receipt script output.
 
 ## 6. Documentation Updates

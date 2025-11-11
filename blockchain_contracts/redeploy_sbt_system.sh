@@ -64,9 +64,9 @@ fi
 
 # 네트워크 상태 확인
 echo "🔍 네트워크 상태 확인 중..."
-if ! docker ps | grep -q "quorum-test-network"; then
-    echo "❌ 오류: quorum-test-network가 실행 중이 아닙니다."
-    echo "먼저 네트워크를 시작하세요: cd ../quorum-test-network && ./run.sh"
+if ! docker ps | grep -q "network"; then
+    echo "❌ 오류: network가 실행 중이 아닙니다."
+    echo "먼저 네트워크를 시작하세요: cd ../network && ./run.sh"
     exit 1
 fi
 
