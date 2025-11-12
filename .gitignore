@@ -17,6 +17,7 @@ ehthumbs.db
 *.sublime-project
 *.sublime-workspace
 *.iml
+GEMINI.md
 
 # Package manager caches
 .npm/
