@@ -192,12 +192,11 @@ npm start
 
 **MetaMask 설정:**
 1. 네트워크 추가:
-   - RPC URL: `http://localhost:10545`
+   - RPC URL: `http://localhost:9545`
    - Chain ID: `1337`
    - 통화: `ETH`
 2. 계정 가져오기 (테스트용):
-   - Private Key: `8f2a55949038a9610f50fb23b5883af3b4ecb3c3bb792cbcefbd1542c692be63`
-   - 주소: `0xfe3b557e8fb62b89f4916b721be55ceb828dbd73`
+   - 계정 가져오기: 테스트용 계정을 직접 생성하거나, 개발 환경에서 제공하는 테스트 계정의 Private Key를 사용하여 가져옵니다. (예: `ganache` 또는 `quorum` 개발 네트워크에서 제공하는 계정)
 
 #### 5. 새 투표 이벤트 배포
 
