@@ -39,6 +39,7 @@
 **Dependencies**: Phase 0 secrets.
 
 ## Phase 2 – Serverless Email Verification APIs (Vercel Functions)
+**Status**: ✅ Core endpoints deployed and verified end-to-end (Resend delivery + Supabase persistence + on-chain mint/receipt). `/api/webhook/sbt-issued` automation remains optional/backlog.
 **Shared Setup**
 - Runtime: Node.js 18+ (serverless functions because crypto and Argon2 modules need Node API).
 - Shared utilities: `normalizeEmail`, `normalizeAddress` (EIP-55), `createLookupHmac`, `deriveSlowHash`, `encryptRetryPayload`, `decryptRetryPayload`, Supabase client wrapper, rate limiter (Upstash/QStash or Vercel Edge Config combined with a limit package).
@@ -70,6 +71,7 @@ Steps:
 1. Normalize the wallet address → `wallet_lookup_hmac`.
 2. Fetch the `verified_users` row; if `status='PENDING'`, decrypt `retry_payload_enc` and return the signature bundle for retry.
 3. If `status='COMPLETED'`, return the finished status only.
+**Verification log**: `curl https://blockchain-voting-system-ye422s-projects.vercel.app/api/check-status?wallet=0x9d09...` returned `{ status:"PENDING", signature, identityHash, nonce }`, then `status:"COMPLETED"` after the mint finished, confirming the resume/complete flow.
 
 ### Endpoint: `POST /api/complete-verification`
 1. Validate `{ walletAddress, txHash }`.
@@ -78,6 +80,7 @@ Steps:
    - Confirm `status === 1`, `to` equals the CitizenSBT contract, `from` matches the wallet, and logs emit the expected `identityHash` or `nonce`.
 4. If valid, update the row: set `status='COMPLETED'`, `tx_hash=txHash`, `completed_at=now()`, and clear `signature` + `retry_payload_enc`.
 5. If invalid, return an error and preserve the pending state for retry.
+**Verification log**: Executed the full happy path (`request-code → verify-and-sign → mintWithSignature` on CitizenSBT `0x968969dB...` with tx `0x4c8105f1…` → `/api/complete-verification`) and observed the PENDING row flip to `COMPLETED`. Endpoint correctly rejected mismatched contract targets until `CITIZEN_SBT_CONTRACT_ADDRESS` was updated.
 
 ### Endpoint: `POST /api/webhook/sbt-issued` (optional automation)
 - Accepts webhook events from a Quorum node or third party to automatically mark verifications complete.

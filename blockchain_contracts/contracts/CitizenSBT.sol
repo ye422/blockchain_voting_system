@@ -3,11 +3,15 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 /// @title CitizenSBT
 /// @notice Soulbound Token (SBT) for binding verified identities to wallet addresses.
 /// @dev Non-transferable ERC721 token that ensures one-person-one-wallet binding.
 contract CitizenSBT is ERC721, Ownable {
+    using ECDSA for bytes32;
+    using MessageHashUtils for bytes32;
     /// @notice Counter for token IDs
     uint256 private _nextTokenId;
 
@@ -26,8 +30,14 @@ contract CitizenSBT is ERC721, Ownable {
     /// @dev Stores the identity hash associated with each token
     mapping(uint256 => bytes32) public tokenToIdentity;
 
+    /// @notice Records which nonces have been consumed for signature-based minting
+    mapping(bytes32 => bool) public nonceUsed;
+
     /// @notice Emitted when a new SBT is minted
     event SBTMinted(address indexed to, uint256 indexed tokenId, bytes32 indexed identityHash);
+
+    /// @notice Emitted when a signature-based mint succeeds
+    event SBTMintedWithSignature(address indexed to, uint256 indexed tokenId, bytes32 indexed nonce);
 
     /// @notice Emitted when the verifier address is updated
     event VerifierUpdated(address indexed oldVerifier, address indexed newVerifier);
@@ -46,6 +56,15 @@ contract CitizenSBT is ERC721, Ownable {
 
     /// @dev Error thrown when trying to set zero address as verifier
     error InvalidVerifierAddress();
+
+    /// @dev Error thrown when mint recipient is invalid
+    error InvalidMintRecipient();
+
+    /// @dev Error thrown when a signature cannot be verified
+    error InvalidSignature();
+
+    /// @dev Error thrown when a nonce has already been consumed
+    error NonceAlreadyUsed(bytes32 nonce);
 
     /// @notice Contract constructor
     /// @param name_ The name of the token collection
@@ -66,52 +85,34 @@ contract CitizenSBT is ERC721, Ownable {
     /// @param to The wallet address to receive the SBT
     /// @param identityHash The hash of the verified identity (keccak256 of identity data)
     /// @return tokenId The ID of the minted token
-    function mint(address to, bytes32 identityHash) 
-        external 
-        returns (uint256 tokenId) 
-    {
-        // TEMPORARY FOR TESTING: Allow users to mint their own SBT
-        // In production, uncomment this line to enforce verifier-only minting:
-        // if (msg.sender != verifier) revert NotAuthorizedVerifier();
-        
-        // For now, only check that msg.sender is minting for themselves
-        if (msg.sender != to) {
-            // If not minting for self, must be verifier
-            if (msg.sender != verifier) revert NotAuthorizedVerifier();
-        }
+    function mint(address to, bytes32 identityHash) external returns (uint256 tokenId) {
+        if (msg.sender != verifier) revert NotAuthorizedVerifier();
+        tokenId = _mintSBT(to, identityHash);
+    }
 
-        // Check if identity is already registered
-        if (identityToWallet[identityHash] != address(0)) {
-            revert IdentityAlreadyRegistered(identityToWallet[identityHash]);
-        }
+    /// @notice Mint using an off-chain verifier signature so users can submit their own transactions.
+    /// @param to Wallet receiving the SBT (must match the wallet used during verification)
+    /// @param identityHash Backend-derived identity hash
+    /// @param nonce Unique nonce issued alongside the signature
+    /// @param signature EIP-191 signature created by the verifier backend
+    function mintWithSignature(
+        address to,
+        bytes32 identityHash,
+        bytes32 nonce,
+        bytes calldata signature
+    ) external returns (uint256 tokenId) {
+        if (msg.sender != to) revert NotAuthorizedVerifier();
+        if (nonce == bytes32(0)) revert InvalidSignature();
+        if (nonceUsed[nonce]) revert NonceAlreadyUsed(nonce);
 
-        // Check if wallet already has an SBT
-        if (hasSBT[to]) {
-            // Find the existing token ID
-            uint256 existingTokenId = 0;
-            for (uint256 i = 0; i < _nextTokenId; i++) {
-                if (_ownerOf(i) == to) {
-                    existingTokenId = i;
-                    break;
-                }
-            }
-            revert WalletAlreadyHasSBT(existingTokenId);
-        }
+        bytes32 digest = _hashMintRequest(to, identityHash, nonce);
+        address recovered = digest.toEthSignedMessageHash().recover(signature);
+        if (recovered != verifier) revert InvalidSignature();
 
-        // Mint new token
-        tokenId = _nextTokenId;
-        unchecked {
-            _nextTokenId += 1;
-        }
+        nonceUsed[nonce] = true;
+        tokenId = _mintSBT(to, identityHash);
 
-        _safeMint(to, tokenId);
-
-        // Store bindings
-        identityToWallet[identityHash] = to;
-        hasSBT[to] = true;
-        tokenToIdentity[tokenId] = identityHash;
-
-        emit SBTMinted(to, tokenId, identityHash);
+        emit SBTMintedWithSignature(to, tokenId, nonce);
     }
 
     /// @notice Check if an identity hash is already registered
@@ -198,6 +199,44 @@ contract CitizenSBT is ERC721, Ownable {
         pure
     {
         revert TokenIsSoulbound();
+    }
+
+    function _mintSBT(address to, bytes32 identityHash) internal returns (uint256 tokenId) {
+        if (to == address(0)) revert InvalidMintRecipient();
+
+        if (identityToWallet[identityHash] != address(0)) {
+            revert IdentityAlreadyRegistered(identityToWallet[identityHash]);
+        }
+
+        if (hasSBT[to]) {
+            uint256 existingTokenId = _findExistingTokenId(to);
+            revert WalletAlreadyHasSBT(existingTokenId);
+        }
+
+        tokenId = _nextTokenId;
+        unchecked {
+            _nextTokenId += 1;
+        }
+
+        _safeMint(to, tokenId);
+        identityToWallet[identityHash] = to;
+        hasSBT[to] = true;
+        tokenToIdentity[tokenId] = identityHash;
+
+        emit SBTMinted(to, tokenId, identityHash);
+    }
+
+    function _findExistingTokenId(address wallet) private view returns (uint256 tokenId) {
+        for (uint256 i = 0; i < _nextTokenId; i++) {
+            if (_ownerOf(i) == wallet) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    function _hashMintRequest(address to, bytes32 identityHash, bytes32 nonce) private view returns (bytes32) {
+        return keccak256(abi.encodePacked(identityHash, to, block.chainid, nonce));
     }
 
     /// @notice Override getApproved to always return zero address
