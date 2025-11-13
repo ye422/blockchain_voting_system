@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router";
 import { connectWallet, switchNetwork, CHAIN_ID, CHAIN_NAME, getWeb3, onAccountsChanged } from "../lib/web3";
 import {
     checkHasSBT,

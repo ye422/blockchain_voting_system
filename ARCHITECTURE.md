@@ -1013,6 +1013,3 @@ contract.methods.isCitizen('YOUR_ADDRESS').call().then(console.log);
 ```
 
 ---
-
-**작성 기준**: 2025년 11월 12일
-**프로젝트 상태**: 개발 중 (Phase 5)
