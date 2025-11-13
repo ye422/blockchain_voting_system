@@ -13,6 +13,19 @@
 
 NO_LOCK_REQUIRED=false
 
+WITH_NGROK=false
+for arg in "$@"; do
+    case "$arg" in
+        --with-ngrok)
+            WITH_NGROK=true
+            ;;
+        *)
+            echo "Unknown option: $arg"
+            exit 1
+            ;;
+    esac
+done
+
 . ./.env
 . ./.common.sh
 
@@ -30,3 +43,15 @@ if [ -f "docker-compose-deps.yml" ]; then
     docker-compose -f docker-compose-deps.yml stop
 fi
 
+if [ "${WITH_NGROK}" = true ]; then
+    PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    NGROK_HELPER="${PROJECT_ROOT}/scripts/ngrok-utils.sh"
+    if [ -f "${NGROK_HELPER}" ]; then
+        # shellcheck disable=SC1090
+        . "${NGROK_HELPER}"
+        ngrok_stop_rpc_tunnel
+        ngrok_update_root_rpc_url "${NGROK_LOCAL_RPC_URL}"
+    else
+        echo "ngrok helper not found at ${NGROK_HELPER}"
+    fi
+fi
