@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router';
 import useEmailVerificationStore from '../../stores/emailVerificationStore';
 import { EmailVerificationAPI } from '../../lib/emailVerificationApi';
 import { isEmailValid, isDomainAllowed, getAllowedDomains } from '../../lib/emailUtils';
@@ -25,11 +26,14 @@ export default function EmailInputStep() {
         setEmail,
         setWallet,
         setCodeSent,
+        setCompleted,
         setError,
         setLoading,
+        reset,
         isLoading,
         error
     } = useEmailVerificationStore();
+    const navigate = useNavigate();
 
     const [emailError, setEmailError] = useState<string | null>(null);
     const allowedDomains = getAllowedDomains();
@@ -91,6 +95,19 @@ export default function EmailInputStep() {
 
         try {
             setLoading(true);
+
+            try {
+                const status = await EmailVerificationAPI.checkStatus(walletAddress);
+                if (status.status === 'COMPLETED') {
+                    setCompleted();
+                    setLoading(false);
+                    navigate('/voting');
+                    return;
+                }
+            } catch (statusError) {
+                console.warn('checkStatus failed, continuing with code request', statusError);
+            }
+
             await EmailVerificationAPI.requestCode({
                 email,
                 walletAddress
@@ -103,7 +120,32 @@ export default function EmailInputStep() {
         }
     };
 
+    const handleResetVerification = async () => {
+        if (!email || !walletAddress) {
+            setError('이메일과 지갑을 입력한 후 초기화할 수 있습니다.');
+            return;
+        }
+
+        const confirmed = window.confirm('인증 과정을 초기화하시겠습니까?\n\n이전에 진행된 인증 정보가 모두 삭제됩니다.');
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            setLoading(true);
+            await EmailVerificationAPI.resetVerification({ email, walletAddress });
+            reset();
+            setError(null);
+            alert('인증 정보가 초기화되었습니다. 처음부터 다시 진행해주세요.');
+        } catch (err: any) {
+            setError(err.message || '인증 초기화에 실패했습니다.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const canSubmit = email && walletAddress && !emailError && !isLoading;
+    const canReset = email && walletAddress && !isLoading;
 
     return (
         <div className="email-input-step">
@@ -140,6 +182,15 @@ export default function EmailInputStep() {
                 disabled={!canSubmit}
             >
                 {isLoading ? '전송 중...' : '📧 인증 코드 받기'}
+            </button>
+
+            <button
+                type="button"
+                className="secondary-button reset-button"
+                onClick={handleResetVerification}
+                disabled={!canReset}
+            >
+                ♻️ 인증 과정 초기화
             </button>
 
             <div className="info-box">

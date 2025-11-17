@@ -115,6 +115,18 @@
     cursor: not-allowed;
 }
 
+.reset-button {
+    margin-top: 0.75rem;
+    border-color: #f87171;
+    color: #dc2626;
+}
+
+.reset-button:hover:not(:disabled) {
+    background: #fef2f2;
+    border-color: #dc2626;
+    color: #b91c1c;
+}
+
 /* 에러 메시지 */
 .error-message {
     background: #fef2f2;

@@ -40,6 +40,11 @@ interface CompleteVerificationParams {
   txHash: string;
 }
 
+interface ResetVerificationParams {
+  email: string;
+  walletAddress: string;
+}
+
 /**
  * 이메일 인증 코드 요청
  */
@@ -121,11 +126,30 @@ async function completeVerification(params: CompleteVerificationParams): Promise
   return response.json();
 }
 
+async function resetVerification(params: ResetVerificationParams): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/reset-verification`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: params.email,
+      walletAddress: params.walletAddress
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Failed to reset verification' }));
+    throw new Error(error.message || 'Failed to reset verification');
+  }
+
+  return response.json();
+}
+
 export const EmailVerificationAPI = {
   requestCode,
   verifyCode,
   checkStatus,
-  completeVerification
+  completeVerification,
+  resetVerification
 };
 
 export type {
@@ -133,5 +157,6 @@ export type {
   VerifyCodeParams,
   VerifyResponse,
   CheckStatusResponse,
-  CompleteVerificationParams
+  CompleteVerificationParams,
+  ResetVerificationParams
 };
