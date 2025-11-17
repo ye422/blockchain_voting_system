@@ -27,7 +27,7 @@ export default function MyNFTsPage() {
                 const accounts = await web3.eth.getAccounts();
 
                 if (accounts.length === 0) {
-                    navigate("/auth");
+                    navigate("/email-verification");
                     return;
                 }
 
@@ -47,8 +47,7 @@ export default function MyNFTsPage() {
         // 지갑 연결 상태 감지
         const unsubscribe = onAccountsChanged(async (accounts) => {
             if (accounts.length === 0) {
-                // 지갑 연결 해제 시 Auth 페이지로 이동
-                navigate("/auth");
+                navigate("/email-verification");
             } else {
                 // 지갑 변경 시 새 지갑의 NFT 로드
                 const newAddress = accounts[0];

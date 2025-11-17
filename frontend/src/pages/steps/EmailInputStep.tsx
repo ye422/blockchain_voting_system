@@ -95,16 +95,30 @@ export default function EmailInputStep() {
         try {
             setLoading(true);
 
+            let status;
             try {
-                const status = await EmailVerificationAPI.checkStatus(walletAddress);
-                if (status.status === 'COMPLETED') {
-                    setCompleted();
-                    setLoading(false);
-                    navigate('/voting');
-                    return;
-                }
+                status = await EmailVerificationAPI.checkStatus(walletAddress);
             } catch (statusError) {
                 console.warn('checkStatus failed, continuing with code request', statusError);
+            }
+
+            if (status?.status === 'COMPLETED') {
+                const accounts = await connectWallet();
+                if (!accounts.length) {
+                    throw new Error('지갑 연결에 실패했습니다.');
+                }
+
+                await switchNetwork(
+                    CHAIN_ID,
+                    CHAIN_NAME,
+                    process.env.REACT_APP_RPC || 'http://localhost:9545'
+                );
+
+                setWallet(accounts[0]);
+                setCompleted();
+                setLoading(false);
+                navigate('/voting');
+                return;
             }
 
             await EmailVerificationAPI.requestCode({

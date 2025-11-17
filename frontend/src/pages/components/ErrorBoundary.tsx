@@ -39,7 +39,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             error: null,
             errorInfo: null
         });
-        window.location.href = '/auth';
+        window.location.href = '/email-verification';
     };
 
     render(): ReactNode {

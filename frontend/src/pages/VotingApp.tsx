@@ -444,16 +444,14 @@ export function VotingApp() {
         const primaryAccount = accounts[0];
 
         if (!primaryAccount) {
-          // No wallet connected, redirect to auth
-          navigate("/auth");
+          navigate("/email-verification");
           return;
         }
 
         // Check if user has SBT
         const hasSBT = await checkHasSBT(primaryAccount);
         if (!hasSBT) {
-          // No SBT, redirect to auth
-          navigate("/auth");
+          navigate("/email-verification");
           return;
         }
 
@@ -467,7 +465,7 @@ export function VotingApp() {
         }
       } catch (error) {
         console.warn("Account detection failed:", error);
-        navigate("/auth");
+        navigate("/email-verification");
       }
     }
 
