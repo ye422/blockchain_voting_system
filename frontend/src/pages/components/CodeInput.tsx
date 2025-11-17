@@ -4,7 +4,7 @@ import './CodeInput.css';
 interface CodeInputProps {
     value: string;
     onChange: (value: string) => void;
-    onSubmit: () => void;
+    onSubmit: (value?: string) => void;
     disabled: boolean;
     maxLength: number;
 }
@@ -27,25 +27,34 @@ export default function CodeInput({
     }, [disabled]);
 
     const handleChange = (index: number, digitValue: string) => {
-        // 숫자만 허용
-        if (digitValue && !/^\d$/.test(digitValue)) {
+        if (disabled) return;
+
+        const sanitized = digitValue.replace(/\D/g, '');
+        const newDigits = [...digits];
+
+        if (!sanitized) {
+            newDigits[index] = '';
+            onChange(newDigits.join('').replace(/\s/g, ''));
             return;
         }
 
-        const newDigits = [...digits];
-        newDigits[index] = digitValue;
-        const newValue = newDigits.join('').replace(/\s/g, '');
-
-        onChange(newValue);
-
-        // 숫자 입력 시 다음 필드로 이동
-        if (digitValue && index < maxLength - 1) {
-            inputRefs.current[index + 1]?.focus();
+        let cursor = index;
+        for (const char of sanitized.split('')) {
+            if (cursor >= maxLength) break;
+            newDigits[cursor] = char;
+            cursor += 1;
         }
 
-        // 마지막 자리 입력 완료 시 자동 제출
-        if (digitValue && index === maxLength - 1 && newValue.length === maxLength) {
-            onSubmit();
+        const newValue = newDigits.join('').replace(/\s/g, '').slice(0, maxLength);
+        onChange(newValue);
+
+        const focusIndex = Math.min(cursor, maxLength - 1);
+        if (focusIndex < maxLength) {
+            inputRefs.current[focusIndex]?.focus();
+        }
+
+        if (newValue.length === maxLength) {
+            setTimeout(() => onSubmit(newValue), 0);
         }
     };
 
@@ -95,7 +104,7 @@ export default function CodeInput({
 
             // 전체 코드가 입력되었으면 자동 제출
             if (newValue.length === maxLength) {
-                onSubmit();
+                setTimeout(() => onSubmit(newValue), 0);
             }
         }
     };

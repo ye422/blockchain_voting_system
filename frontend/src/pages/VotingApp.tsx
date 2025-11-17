@@ -326,7 +326,7 @@ export function VotingApp() {
       setUserHasVoted(false);
       sessionStorage.clear();
       localStorage.removeItem("walletAddress");
-      navigate("/auth");
+      navigate("/email-verification");
     };
 
     if (!window.confirm("지갑 연결을 해제하시겠습니까?\n\nMetaMask에서 직접 연결을 해제하려면:\n1. MetaMask 확장 프로그램 클릭\n2. 연결된 사이트 관리\n3. 이 사이트 연결 해제")) {

@@ -29,13 +29,15 @@ export default function CodeVerificationStep() {
         }
     }, [isCodeExpired, setError]);
 
-    const handleVerifyCode = async () => {
-        if (!email || !walletAddress || !code) {
+    const handleVerifyCode = async (overrideCode?: string) => {
+        const activeCode = (overrideCode ?? code).trim();
+
+        if (!email || !walletAddress || !activeCode) {
             setError('모든 정보를 입력해주세요.');
             return;
         }
 
-        if (code.length !== 6) {
+        if (activeCode.length !== 6) {
             setError('6자리 인증 코드를 입력해주세요.');
             return;
         }
@@ -47,7 +49,7 @@ export default function CodeVerificationStep() {
             const result = await EmailVerificationAPI.verifyCode({
                 email,
                 walletAddress,
-                code
+                code: activeCode
             });
 
             if (result.status === 'PENDING' && result.signature) {
@@ -132,7 +134,7 @@ export default function CodeVerificationStep() {
             <div className="action-buttons">
                 <button
                     className="primary-button"
-                    onClick={handleVerifyCode}
+                    onClick={() => handleVerifyCode()}
                     disabled={code.length !== 6 || isLoading || isCodeExpired()}
                 >
                     {isLoading ? '검증 중...' : '✓ 코드 확인'}

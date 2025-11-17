@@ -113,13 +113,13 @@ export default function MyNFTsPage() {
 
             // Auth 페이지로 이동
             console.log("🏠 Auth 페이지로 이동");
-            navigate("/auth");
+            navigate("/email-verification");
         } catch (error) {
             console.error("❌ Disconnect error:", error);
             // 오류 발생 시에도 세션 정리 후 이동
             sessionStorage.clear();
             localStorage.removeItem("walletAddress");
-            navigate("/auth");
+            navigate("/email-verification");
         }
     };
 
