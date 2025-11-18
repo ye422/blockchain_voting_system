@@ -118,6 +118,12 @@ Steps:
 **Deliverables**: Updated `blockchain_contracts/CitizenSBT.sol`, Hardhat test report, and deployment artifacts JSON.
 **Dependencies**: Phase 2 signing payload finalized before implementing signing logic.
 
+**Progress Log (2025-11-18)**
+- CitizenSBT Phase 4 사양을 적용하기 위해 컨트랙트/프런트/서버를 업데이트하고, signatureExpiration을 포함한 새 서명을 발급하도록 작업을 진행함.
+- 그러나 Raft 합의 네트워크의 특성상 트랜잭션이 있을 때만 블록이 생성되어 체인 timestamp가 멈춰 있었고, 만료 검증(`block.timestamp > signatureExpiration`)이 항상 `SignatureExpired`로 실패함.
+- `/api/verify-and-sign`에서 체인 timestamp를 읽어 만료를 계산하도록 바꾸고, 프런트도 새 시그니처를 전달했지만, 블록이 생성되지 않는 한 TTL이 과거 기준으로 고정되어 사용자가 즉시 만료되는 문제가 계속됨.
+- 블록 주기를 유지하거나 시스템 시각 기반으로 재설계해야 하는 추가 작업이 필요하다고 판단되어, 현재는 Phase 4 변경 사항을 롤백하고 추후 시간 확보 후 다시 진행하기로 결정함.
+
 ## Phase 5 – Monitoring, QA, and Operations
 **Tasks**
 1. Add structured logging/tracing in APIs (request ID, wallet hash prefix) and forward to a Vercel log drain (Datadog or Logtail free tier).
