@@ -77,6 +77,29 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+WITH_NGROK=false
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --with-ngrok)
+            WITH_NGROK=true
+            shift
+            ;;
+        *)
+            echo -e "${RED}Unknown option: $1${NC}"
+            exit 1
+            ;;
+    esac
+done
+
+NGROK_HELPER="${PROJECT_ROOT}/scripts/ngrok-utils.sh"
+if [[ -f "${NGROK_HELPER}" ]]; then
+    # shellcheck disable=SC1090
+    source "${NGROK_HELPER}"
+elif [[ "${WITH_NGROK}" == "true" ]]; then
+    echo -e "${RED}✗ --with-ngrok requested but ${NGROK_HELPER} is missing${NC}"
+    exit 1
+fi
+
 if [[ "${DEPLOY_ENV_SOURCED}" == "true" ]]; then
     echo -e "${YELLOW}Using deployment configuration from ${DEPLOY_ENV_FILE}${NC}"
 else
@@ -267,6 +290,32 @@ else
     fi
 fi
 
+EFFECTIVE_RPC_ENDPOINT="${DEFAULT_RPC_ENDPOINT}"
+if [[ "${WITH_NGROK}" == "true" ]]; then
+    if ! declare -f ngrok_start_rpc_tunnel >/dev/null 2>&1; then
+        echo -e "${RED}✗ ngrok helper not loaded; cannot start tunnel${NC}"
+        exit 1
+    fi
+    if NGROK_RPC_VALUE=$(ngrok_start_rpc_tunnel "${NGROK_DEFAULT_PORT}"); then
+        EFFECTIVE_RPC_ENDPOINT="${NGROK_RPC_VALUE}"
+        ngrok_update_root_rpc_url "${EFFECTIVE_RPC_ENDPOINT}"
+        if [[ -f "${NGROK_TUNNEL_STATE_FILE}" ]]; then
+            # shellcheck disable=SC1090
+            source "${NGROK_TUNNEL_STATE_FILE}"
+            echo -e "${GREEN}✓ ngrok tunnel ready${NC}"
+            echo -e "${GREEN}  Public URL:${NC} ${NGROK_PUBLIC_URL}"
+            echo -e "${GREEN}  Basic Auth:${NC} ${NGROK_USERNAME}:${NGROK_PASSWORD}"
+        fi
+    else
+        echo -e "${RED}✗ Failed to start ngrok tunnel${NC}"
+        exit 1
+    fi
+elif declare -f ngrok_update_root_rpc_url >/dev/null 2>&1; then
+    ngrok_update_root_rpc_url "${DEFAULT_RPC_ENDPOINT}"
+else
+    replace_or_append_env_key "${PROJECT_ROOT}/.env" "RPC_URL" "${DEFAULT_RPC_ENDPOINT}"
+fi
+
 # 3. Node.js 의존성 확인
 echo -e "\n${YELLOW}[3/6] Checking Node.js dependencies...${NC}"
 cd "${SCRIPT_DIR}"
@@ -393,7 +442,12 @@ echo -e "\n${GREEN}========================================${NC}"
 echo -e "${GREEN}  Setup Complete!${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}Network:${NC} ${CONSENSUS}"
-echo -e "${GREEN}RPC Endpoint:${NC} ${DEFAULT_RPC_ENDPOINT}"
+if [[ "${WITH_NGROK}" == "true" ]]; then
+    echo -e "${GREEN}RPC Endpoint (public):${NC} ${EFFECTIVE_RPC_ENDPOINT}"
+    echo -e "${GREEN}RPC Endpoint (local):${NC} ${DEFAULT_RPC_ENDPOINT}"
+else
+    echo -e "${GREEN}RPC Endpoint:${NC} ${EFFECTIVE_RPC_ENDPOINT}"
+fi
 echo -e "${GREEN}CitizenSBT:${NC} $(node -p "require('${ARTIFACTS_DIR}/sbt_deployment.json').contracts.CitizenSBT.address" 2>/dev/null || echo 'N/A')"
 echo -e "${GREEN}VotingWithSBT:${NC} $(node -p "require('${ARTIFACTS_DIR}/sbt_deployment.json').contracts.VotingWithSBT.address" 2>/dev/null || echo 'N/A')"
 echo -e "${GREEN}VotingRewardNFT:${NC} $(node -p "require('${ARTIFACTS_DIR}/sbt_deployment.json').contracts.VotingRewardNFT.address" 2>/dev/null || echo 'N/A')"

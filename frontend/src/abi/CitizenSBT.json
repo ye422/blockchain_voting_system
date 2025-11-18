@@ -22,6 +22,33 @@
     "signature": "constructor"
   },
   {
+    "inputs": [],
+    "name": "ECDSAInvalidSignature",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "length",
+        "type": "uint256"
+      }
+    ],
+    "name": "ECDSAInvalidSignatureLength",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "s",
+        "type": "bytes32"
+      }
+    ],
+    "name": "ECDSAInvalidSignatureS",
+    "type": "error"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -137,7 +164,28 @@
   },
   {
     "inputs": [],
+    "name": "InvalidMintRecipient",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidSignature",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidVerifierAddress",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "nonce",
+        "type": "bytes32"
+      }
+    ],
+    "name": "NonceAlreadyUsed",
     "type": "error"
   },
   {
@@ -280,6 +328,32 @@
     "name": "SBTMinted",
     "type": "event",
     "signature": "0xb7cdbcb1ec645136529ff37ea98d53844725d335895e0d5373fe018a22dd4852"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "nonce",
+        "type": "bytes32"
+      }
+    ],
+    "name": "SBTMintedWithSignature",
+    "type": "event",
+    "signature": "0x18a6095da12e760bb9bfb876bc7546b25560f87343825b38cca0bb82e73f8d6f"
   },
   {
     "anonymous": false,
@@ -546,6 +620,41 @@
     "signature": "0x2cfd3005"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "identityHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "nonce",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "mintWithSignature",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function",
+    "signature": "0x37674b26"
+  },
+  {
     "inputs": [],
     "name": "name",
     "outputs": [
@@ -559,6 +668,27 @@
     "type": "function",
     "constant": true,
     "signature": "0x06fdde03"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "nonceUsed",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function",
+    "constant": true,
+    "signature": "0x61a4422b"
   },
   {
     "inputs": [],

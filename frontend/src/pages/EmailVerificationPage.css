@@ -1,0 +1,311 @@
+.email-verification-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 2rem 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.verification-container {
+    max-width: 700px;
+    width: 100%;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+.verification-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    text-align: center;
+}
+
+.verification-header h1 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+.verification-subtitle {
+    margin: 0.75rem 0 0;
+    font-size: 1rem;
+    opacity: 0.95;
+    font-weight: 400;
+}
+
+.step-content {
+    padding: 2rem;
+    min-height: 400px;
+}
+
+/* Step 공통 스타일 */
+.step-header {
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.step-header h2 {
+    color: #1f2937;
+    font-size: 1.5rem;
+    margin: 0 0 0.5rem;
+    font-weight: 600;
+}
+
+.step-description {
+    color: #6b7280;
+    font-size: 0.95rem;
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* 버튼 스타일 */
+.primary-button,
+.secondary-button {
+    padding: 0.875rem 1.5rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    outline: none;
+    width: 100%;
+}
+
+.primary-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.primary-button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+}
+
+.primary-button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.primary-button:disabled {
+    background: #d1d5db;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.secondary-button {
+    background: white;
+    color: #667eea;
+    border: 2px solid #667eea;
+}
+
+.secondary-button:hover:not(:disabled) {
+    background: #f3f4f6;
+    transform: translateY(-1px);
+}
+
+.secondary-button:disabled {
+    background: #f9fafb;
+    color: #d1d5db;
+    border-color: #d1d5db;
+    cursor: not-allowed;
+}
+
+.reset-button {
+    margin-top: 0.75rem;
+    border-color: #f87171;
+    color: #dc2626;
+}
+
+.reset-button:hover:not(:disabled) {
+    background: #fef2f2;
+    border-color: #dc2626;
+    color: #b91c1c;
+}
+
+/* 에러 메시지 */
+.error-message {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+    color: #dc2626;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 정보 박스 */
+.info-box {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-top: 1.5rem;
+}
+
+.info-box h3 {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+    color: #1e40af;
+    font-weight: 600;
+}
+
+.info-box ul {
+    margin: 0;
+    padding-left: 1.25rem;
+    color: #1e40af;
+    font-size: 0.9rem;
+}
+
+.info-box li {
+    margin: 0.5rem 0;
+    line-height: 1.5;
+}
+
+/* 로딩 스피너 */
+.spinner {
+    border: 3px solid #f3f4f6;
+    border-top: 3px solid #667eea;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.loading-section {
+    text-align: center;
+    padding: 2rem 0;
+}
+
+.loading-section p {
+    margin: 1rem 0;
+    color: #4b5563;
+    font-size: 1rem;
+}
+
+.small-text {
+    font-size: 0.85rem;
+    color: #9ca3af;
+}
+
+/* 액션 버튼 그룹 */
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.action-buttons button {
+    flex: 1;
+}
+
+/* 경고 메시지 */
+.gas-warning,
+.warning-box {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+    color: #92400e;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+/* 시도 횟수 정보 */
+.attempt-info {
+    text-align: center;
+    color: #6b7280;
+    font-size: 0.9rem;
+    margin: 0.75rem 0;
+    font-weight: 500;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+    .email-verification-page {
+        padding: 1rem 0.5rem;
+    }
+
+    .verification-container {
+        border-radius: 12px;
+    }
+
+    .verification-header {
+        padding: 1.5rem 1rem;
+    }
+
+    .verification-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .verification-subtitle {
+        font-size: 0.9rem;
+    }
+
+    .step-content {
+        padding: 1.5rem;
+        min-height: 350px;
+    }
+
+    .step-header h2 {
+        font-size: 1.25rem;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .primary-button,
+    .secondary-button {
+        padding: 0.75rem 1.25rem;
+        font-size: 0.95rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .verification-header h1 {
+        font-size: 1.25rem;
+    }
+
+    .step-content {
+        padding: 1rem;
+    }
+
+    .info-box {
+        padding: 1rem;
+        font-size: 0.85rem;
+    }
+}
