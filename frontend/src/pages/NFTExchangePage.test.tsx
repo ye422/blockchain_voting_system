@@ -37,13 +37,7 @@ function setWallet(address: string | null) {
 }
 
 function resetTradingStore() {
-  useNFTTradingStore.setState({
-    activeTab: "market",
-    walletAddress: null,
-    isHydrated: false,
-    userSummary: null,
-    isUserSummaryLoading: false,
-  });
+  useNFTTradingStore.getState().reset();
 }
 
 beforeEach(() => {

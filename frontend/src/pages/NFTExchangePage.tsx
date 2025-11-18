@@ -11,7 +11,8 @@ import {
 import { useNavigate } from "react-router";
 import type { NavigateFunction } from "react-router";
 import useEmailVerificationStore from "../stores/emailVerificationStore";
-import useNFTTradingStore, { NFTTradingTab, UserSummaryPlaceholder } from "../stores/nftTradingStore";
+import useNFTTradingStore, { NFTTradingTab } from "../stores/nftTradingStore";
+import type { UserSummary } from "../types/nftTrading";
 import { checkHasSBT } from "../lib/sbt";
 import { useToast } from "../components/ToastProvider";
 import "./NFTExchangePage.css";
@@ -194,6 +195,8 @@ export default function NFTExchangePage() {
       setUserSummary({
         totalListings: 0,
         pendingProposals: 0,
+        lockedListings: 0,
+        drafts: 0,
         lastSyncedAt: new Date().toISOString(),
       });
       setUserSummaryLoading(false);
@@ -376,7 +379,7 @@ function TabPlaceholder({ title, description, actionLabel, onAction }: TabPlaceh
   );
 }
 
-function UserSummaryCard({ userSummary, isLoading }: { userSummary: UserSummaryPlaceholder | null; isLoading: boolean }) {
+function UserSummaryCard({ userSummary, isLoading }: { userSummary: UserSummary | null; isLoading: boolean }) {
   return (
     <div className="nft-user-summary">
       <div className="nft-user-summary-row">
