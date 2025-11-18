@@ -870,32 +870,6 @@ export function VotingApp() {
                 <div className="nav-card__title">지갑 주소</div>
                 <div className="nav-card__content">{currentUser}</div>
               </div>
-              <div className={`nav-card nav-card--highlight ${lastReceipt ? "nav-card--active" : ""}`}>
-                <div className="nav-card__title">최근 투표 블록</div>
-                {lastReceipt ? (
-                  <>
-                    <div className="nav-card__content nav-card__content--stack">
-                      <strong>#{lastReceipt.blockNumber ?? "확인 중"}</strong>
-                      {lastCandidateName && (
-                        <span>{lastCandidateName} 후보</span>
-                      )}
-                      <span className="nav-card__muted">내 투표가 기록된 블록입니다.</span>
-                    </div>
-                    <button
-                      type="button"
-                      className="nav-card__action"
-                      onClick={handleOpenReceiptModal}
-                    >
-                      내 투표 확인하기
-                    </button>
-                  </>
-                ) : (
-                  <div className="nav-card__content nav-card__content--stack">
-                    <span className="nav-card__muted">최근 투표 기록이 없어요.</span>
-                    <span className="nav-card__hint">투표 후 이 영역에서 블록 정보를 확인할 수 있습니다.</span>
-                  </div>
-                )}
-              </div>
               <button
                 type="button"
                 className="wallet-button wallet-button--nft"

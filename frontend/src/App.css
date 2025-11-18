@@ -185,15 +185,6 @@
   border: 1px solid rgba(91, 106, 140, 0.35);
 }
 
-.nav-card--highlight {
-  gap: 0.65rem;
-}
-
-.nav-card--active {
-  border-color: rgba(129, 140, 248, 0.55);
-  box-shadow: 0 15px 35px rgba(15, 23, 42, 0.45);
-}
-
 .nav-card__title {
   font-size: 0.75rem;
   letter-spacing: 0.14em;
@@ -204,39 +195,6 @@
 .nav-card__content {
   font-size: 0.95rem;
   color: rgba(241, 245, 249, 0.92);
-}
-
-.nav-card__content--stack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.nav-card__muted {
-  font-size: 0.82rem;
-  color: rgba(203, 213, 225, 0.7);
-}
-
-.nav-card__hint {
-  font-size: 0.75rem;
-  color: rgba(148, 163, 184, 0.75);
-}
-
-.nav-card__action {
-  margin-top: 0.3rem;
-  border: none;
-  border-radius: 14px;
-  padding: 0.55rem 1rem;
-  background: rgba(129, 140, 248, 0.95);
-  color: #0f172a;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s ease, transform 0.2s ease;
-}
-
-.nav-card__action:hover {
-  background: rgba(165, 180, 252, 1);
-  transform: translateY(-1px);
 }
 
 .wallet-button {
