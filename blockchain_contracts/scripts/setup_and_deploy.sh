@@ -168,6 +168,10 @@ REACT_APP_EXPECTED_VOTERS=1000
 # Chain metadata used for network validation in the wallet flow
 REACT_APP_CHAIN_ID=0x539
 REACT_APP_CHAIN_NAME=Quorum Local
+
+# Candidate metadata shown in the UI (comma separated names, pledges match deploy.env format)
+REACT_APP_PROPOSAL_NAMES=Alice,Bob,Charlie
+REACT_APP_PROPOSAL_PLEDGES=예산 투명성 강화|거버넌스 참여 확대|실시간 집계 공개;UX 혁신|모바일 최적화|다국어 지원;보안 점검 강화|이중 인증|사고 대응 체계
 EOF
     echo -e "${GREEN}✓ Generated frontend/.env.example template${NC}"
 }
@@ -211,6 +215,8 @@ sync_frontend_env_files() {
         replace_or_append_env_key "${env_file}" "REACT_APP_VOTING_CONTRACT_ADDRESS" "${voting_value}"
         replace_or_append_env_key "${env_file}" "REACT_APP_REWARD_NFT_ADDRESS" "${reward_value}"
         replace_or_append_env_key "${env_file}" "REACT_APP_VERIFIER_ADDRESS" "${verifier_value}"
+        replace_or_append_env_key "${env_file}" "REACT_APP_PROPOSAL_NAMES" "${PROPOSALS:-}"
+        replace_or_append_env_key "${env_file}" "REACT_APP_PROPOSAL_PLEDGES" "${PLEDGES:-}"
     done
 
     echo -e "${GREEN}✓ Updated frontend env files with contract metadata${NC}"
