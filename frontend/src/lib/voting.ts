@@ -1,4 +1,5 @@
 import type { Contract } from "web3";
+import type { TransactionReceipt } from "web3-types";
 import type { AbiItem } from "web3-utils";
 import { getWeb3 } from "./web3";
 import VotingWithSBTAbi from "../abi/VotingWithSBT.abi.json";
@@ -13,6 +14,12 @@ const contractAddress = process.env.REACT_APP_VOTING_CONTRACT_ADDRESS;
 const typedAbi = VotingWithSBTAbi as AbiItem[];
 let cachedWriteContract: Contract<any> | null = null;
 let cachedReadContract: Contract<any> | null = null;
+let inFlightVote:
+  | {
+      proposalId: number;
+      promise: Promise<TransactionReceipt>;
+    }
+  | null = null;
 
 const expectedVotersRaw = process.env.REACT_APP_EXPECTED_VOTERS;
 const expectedVoters =
@@ -80,18 +87,45 @@ export async function hasVoted(address: string): Promise<boolean> {
   return assertVotingContract("read").methods.hasVoted(address).call();
 }
 
-export async function castVote(proposalId: number): Promise<void> {
-  const contract = assertVotingContract("write");
-  const web3 = getWeb3();
-  const accounts = await web3.eth.getAccounts();
-  const from = accounts[0];
-
-  if (!from) {
-    throw new Error("No account available for sending the transaction.");
+export function castVote(proposalId: number): Promise<TransactionReceipt> {
+  if (inFlightVote && inFlightVote.proposalId === proposalId) {
+    return inFlightVote.promise;
   }
 
-  const gasPrice = await web3.eth.getGasPrice();
-  await contract.methods.vote(proposalId).send({ from, gasPrice: String(gasPrice) });
+  if (inFlightVote) {
+    return inFlightVote.promise;
+  }
+
+  const trackedPromise = (async () => {
+    const contract = assertVotingContract("write");
+    const web3 = getWeb3();
+    const accounts = await web3.eth.getAccounts();
+    const from = accounts[0];
+
+    if (!from) {
+      throw new Error("No account available for sending the transaction.");
+    }
+
+    const gasPrice = await web3.eth.getGasPrice();
+    const receipt = await contract.methods
+      .vote(proposalId)
+      .send({ from, gasPrice: String(gasPrice) });
+
+    return receipt as TransactionReceipt;
+  })();
+
+  inFlightVote = {
+    proposalId,
+    promise: trackedPromise,
+  };
+
+  trackedPromise.finally(() => {
+    if (inFlightVote?.promise === trackedPromise) {
+      inFlightVote = null;
+    }
+  });
+
+  return trackedPromise;
 }
 
 export async function fetchBallotMetadata(): Promise<ContractBallotMetadata> {

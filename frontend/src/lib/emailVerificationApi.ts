@@ -58,13 +58,12 @@ async function requestCode(params: RequestCodeParams): Promise<void> {
       recaptchaToken: params.recaptchaToken
     })
   });
-  
+
+  const payload = await parseJsonResponse<{ message?: string }>(response);
+
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Failed to send verification code' }));
-    throw new Error(error.message || 'Failed to send verification code');
+    throw new Error(payload?.message || 'Failed to send verification code');
   }
-  
-  return response.json();
 }
 
 /**
@@ -80,13 +79,14 @@ async function verifyCode(params: VerifyCodeParams): Promise<VerifyResponse> {
       code: params.code
     })
   });
-  
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Code verification failed' }));
-    throw new Error(error.message || 'Code verification failed');
+
+  const payload = await parseJsonResponse<VerifyResponse & { message?: string }>(response);
+
+  if (!response.ok || !payload) {
+    throw new Error(payload?.message || 'Code verification failed');
   }
-  
-  return response.json();
+
+  return payload;
 }
 
 /**
@@ -96,13 +96,21 @@ async function checkStatus(walletAddress: string): Promise<CheckStatusResponse> 
   const response = await fetch(
     `${API_BASE}/api/check-status?wallet=${encodeURIComponent(walletAddress)}`
   );
-  
+
+  const payload = await parseJsonResponse<CheckStatusResponse & { message?: string }>(
+    response,
+    true
+  );
+
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Failed to check status' }));
-    throw new Error(error.message || 'Failed to check status');
+    throw new Error(payload?.message || 'Failed to check status');
   }
-  
-  return response.json();
+
+  if (!payload) {
+    return { success: false, status: 'NOT_FOUND' };
+  }
+
+  return payload;
 }
 
 /**
@@ -117,13 +125,12 @@ async function completeVerification(params: CompleteVerificationParams): Promise
       txHash: params.txHash
     })
   });
-  
+
+  const payload = await parseJsonResponse<{ message?: string }>(response);
+
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Failed to complete verification' }));
-    throw new Error(error.message || 'Failed to complete verification');
+    throw new Error(payload?.message || 'Failed to complete verification');
   }
-  
-  return response.json();
 }
 
 async function resetVerification(params: ResetVerificationParams): Promise<void> {
@@ -136,12 +143,34 @@ async function resetVerification(params: ResetVerificationParams): Promise<void>
     })
   });
 
+  const payload = await parseJsonResponse<{ message?: string }>(response);
+
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Failed to reset verification' }));
-    throw new Error(error.message || 'Failed to reset verification');
+    throw new Error(payload?.message || 'Failed to reset verification');
+  }
+}
+
+async function parseJsonResponse<T>(
+  response: Response,
+  logOnFailure = false
+): Promise<T | null> {
+  const raw = await response.text().catch(() => '');
+
+  if (!raw) {
+    return null;
   }
 
-  return response.json();
+  try {
+    return JSON.parse(raw) as T;
+  } catch (error) {
+    if (logOnFailure) {
+      console.warn('[EmailVerificationAPI] Unexpected response body', {
+        error,
+        snippet: raw.slice(0, 200)
+      });
+    }
+    return null;
+  }
 }
 
 export const EmailVerificationAPI = {
