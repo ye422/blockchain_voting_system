@@ -190,6 +190,9 @@ export default function MyNFTsPage() {
                         </div>
                     </div>
                     <div className="nft-header-right">
+                        <button className="nft-button nft-button--primary" onClick={() => navigate("/nft-exchange")}>
+                            🔁 NFT 거래소
+                        </button>
                         <button className="nft-button nft-button--primary" onClick={() => navigate("/voting")}>
                             🗳️ 투표하러 가기
                         </button>

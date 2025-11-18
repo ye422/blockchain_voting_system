@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
 import EmailVerificationPage from "./pages/EmailVerificationPage";
 import { VotingApp } from "./pages/VotingApp";
 import MyNFTsPage from "./pages/MyNFTsPage";
+import NFTExchangePage from "./pages/NFTExchangePage";
 import "./App.css";
 
 export default function App() {
@@ -20,6 +21,9 @@ export default function App() {
 
         {/* NFT 컬렉션 페이지 */}
         <Route path="/my-nfts" element={<MyNFTsPage />} />
+
+        {/* NFT 거래소 페이지 */}
+        <Route path="/nft-exchange" element={<NFTExchangePage />} />
 
         {/* 알 수 없는 경로는 이메일 인증 페이지로 리다이렉트 */}
         <Route path="*" element={<Navigate to="/email-verification" replace />} />
