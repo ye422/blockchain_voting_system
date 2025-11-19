@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
 import EmailVerificationPage from "./pages/EmailVerificationPage";
 import { VotingApp } from "./pages/VotingApp";
@@ -6,8 +6,36 @@ import MyNFTsPage from "./pages/MyNFTsPage";
 import NFTExchangePage from "./pages/NFTExchangePage";
 import { ToastProvider } from "./components/ToastProvider";
 import "./App.css";
+import { loadConfig } from "./lib/config";
 
 export default function App() {
+  const [configLoaded, setConfigLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadConfig()
+      .then(() => setConfigLoaded(true))
+      .catch((err) => setError(err.message));
+  }, []);
+
+  if (error) {
+    return (
+      <div style={{ padding: "20px", color: "red" }}>
+        <h1>Configuration Error</h1>
+        <p>{error}</p>
+        <p>Please make sure config.json exists in the public directory.</p>
+      </div>
+    );
+  }
+
+  if (!configLoaded) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
+        Loading configuration...
+      </div>
+    );
+  }
+
   return (
     <ToastProvider>
       <Router>

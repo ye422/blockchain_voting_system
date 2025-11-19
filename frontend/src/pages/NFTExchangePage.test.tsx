@@ -1,12 +1,21 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter } from "react-router";
 import NFTExchangePage from "./NFTExchangePage";
 import { ToastProvider } from "../components/ToastProvider";
 import useEmailVerificationStore from "../stores/emailVerificationStore";
 import useNFTTradingStore from "../stores/nftTradingStore";
 import { checkHasSBT } from "../lib/sbt";
+
+jest.mock("lucide-react", () => {
+  const React = require("react");
+  const MockIcon = (props: any) => React.createElement("svg", props);
+  return new Proxy({}, {
+    get: () => MockIcon,
+  });
+});
+
 
 jest.mock("../lib/sbt");
 

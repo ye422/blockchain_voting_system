@@ -400,7 +400,7 @@ function SummaryStat({ label, value }: { label: string; value: string | number }
   );
 }
 
-function formatTimestamp(timestamp?: string) {
+function formatTimestamp(timestamp?: string | null) {
   if (!timestamp) {
     return "대기 중";
   }
