@@ -57,7 +57,7 @@ Remaining: reentrancy attempt test, non-ERC721 address revert test, transfer fai
    - `GET /api/nft-trading/deposits?status=&owner=&limit=&cursor=` (created_at cursor pagination).
    - `GET /api/nft-trading/swap-events?depositId=&limit=&cursor=` (filter by deposit involvement).
    Both public, CORS open; consider rate limit in future.
-4. Frontend: if API available, prefer API for listing and recent swaps; fallback to on-chain polling if not.
+4. ✅ Frontend: market tab now pulls `getDeposits` for ACTIVE listings; mock wallet NFTs remain; listed items merged into feed. (Future: replace mock wallet fetch and add metadata.)
 
 ### Phase D — Ops
 1. Add `.env` entries: `RPC_URL`, `ESCROW_CONTRACT_ADDRESS`, optional `SUPABASE_URL/KEY`.

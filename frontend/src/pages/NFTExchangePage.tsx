@@ -7,6 +7,7 @@ import type { UserSummary } from "../types/nftTrading";
 import { checkHasSBT } from "../lib/sbt";
 import { useToast } from "../components/ToastProvider";
 import { depositToEscrow } from "../lib/escrow";
+import { getDeposits } from "../lib/nftTradingApi";
 import "./NFTExchangePage.css";
 
 type NftCardData = {
@@ -164,7 +165,8 @@ export default function NFTExchangePage() {
   // Mock/load user NFTs (placeholder images)
   useEffect(() => {
     if (!accessGranted) return;
-    const mock: NftCardData[] = [
+    // TODO: replace with actual wallet NFT fetch
+    setAvailableNfts([
       {
         id: "1",
         name: "Civic Badge #1",
@@ -197,28 +199,25 @@ export default function NFTExchangePage() {
         tokenId: "4",
         contract: "0xabc...123",
       },
-    ];
-    setAvailableNfts(mock);
-    setMarketListings([
-      {
-        id: "101",
-        name: "Community Badge #101",
-        image: "https://picsum.photos/seed/market1/400/400",
-        rarity: "에픽",
-        tokenId: "101",
-        contract: "0xdef...456",
-        badge: "LISTED",
-      },
-      {
-        id: "102",
-        name: "Community Badge #102",
-        image: "https://picsum.photos/seed/market2/400/400",
-        rarity: "레어",
-        tokenId: "102",
-        contract: "0xdef...456",
-        badge: "LISTED",
-      },
     ]);
+
+    // Pull market listings from API (deposits)
+    getDeposits({ status: "ACTIVE", limit: 50 })
+      .then((resp) => {
+        const mapped: NftCardData[] = resp.deposits.map((d) => ({
+          id: d.id,
+          name: `Deposit #${d.id}`,
+          image: "https://picsum.photos/seed/deposit" + d.id + "/400/400",
+          rarity: "미정",
+          tokenId: d.token_id,
+          contract: d.nft_contract,
+          badge: d.status,
+        }));
+        setMarketListings(mapped);
+      })
+      .catch((error) => {
+        console.error("Failed to load deposits", error);
+      });
   }, [accessGranted]);
 
   const headerHint = useMemo(() => {
