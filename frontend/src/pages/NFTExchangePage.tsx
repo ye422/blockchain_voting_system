@@ -7,6 +7,7 @@ import type { UserSummary } from "../types/nftTrading";
 import { checkHasSBT } from "../lib/sbt";
 import { useToast } from "../components/ToastProvider";
 import { depositToEscrow, swapOnEscrow, withdrawFromEscrow } from "../lib/escrow";
+import { getRewardNFTs } from "../lib/sbt";
 import { getDeposits } from "../lib/nftTradingApi";
 import "./NFTExchangePage.css";
 
@@ -165,10 +166,32 @@ export default function NFTExchangePage() {
     };
   }, [accessGranted, userSummary, isUserSummaryLoading, setUserSummary, setUserSummaryLoading, listedNfts.length]);
 
-  // Placeholder for wallet NFTs — replace with real wallet fetch
   useEffect(() => {
     if (!accessGranted) return;
-    setAvailableNfts([]);
+    const loadNfts = async () => {
+      try {
+        const wallet = detectedWallet;
+        if (!wallet) return;
+        const tokens = await getRewardNFTs(wallet);
+        const mapped: NftCardData[] = tokens.map((t) => ({
+          id: String(t.tokenId),
+          name: t.name || `Reward NFT #${t.tokenId}`,
+          image: t.image || "",
+          rarity: t.rarity || "미정",
+          tokenId: String(t.tokenId),
+          contract: t.contractAddress || t.contract || "",
+        }));
+        setAvailableNfts(mapped);
+      } catch (error) {
+        console.error("Failed to load wallet NFTs", error);
+        showToast({
+          title: "NFT 로드 실패",
+          description: "지갑 NFT를 불러오지 못했어요. 네트워크/지갑 상태를 확인해주세요.",
+          variant: "error",
+        });
+      }
+    };
+    loadNfts();
 
     // Pull market listings from API (deposits)
     getDeposits({ status: "ACTIVE", limit: 50 })
