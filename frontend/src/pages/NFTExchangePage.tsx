@@ -13,7 +13,12 @@ import { getConfig } from "../lib/config";
 import RewardAbi from "../abi/VotingRewardNFT.json";
 import { ethers } from "ethers";
 
-const { SIMPLE_ESCROW_ADDRESS } = getConfig();
+let SIMPLE_ESCROW_ADDRESS: string;
+try {
+  SIMPLE_ESCROW_ADDRESS = getConfig().SIMPLE_ESCROW_ADDRESS;
+} catch {
+  SIMPLE_ESCROW_ADDRESS = "";
+}
 import "./NFTExchangePage.css";
 
 type NftCardData = {
@@ -224,6 +229,9 @@ export default function NFTExchangePage() {
   const handleListToMarket = async (nft: NftCardData) => {
     setListing(true);
     try {
+      if (!SIMPLE_ESCROW_ADDRESS) {
+        throw new Error("SIMPLE_ESCROW_ADDRESS not loaded");
+      }
       const provider = new ethers.BrowserProvider((window as any).ethereum);
       const signer = await provider.getSigner();
       const reward = new ethers.Contract(REWARD_NFT_ADDR, (RewardAbi as any).abi || RewardAbi, signer);
