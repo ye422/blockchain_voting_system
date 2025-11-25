@@ -9,6 +9,9 @@
     "hardhat": "^2.22.2"
   },
   "scripts": {
-    "test": "hardhat test"
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "test:escrow": "hardhat test tests/simple_nft_escrow.test.js",
+    "deploy:escrow": "hardhat run scripts/deploy_simple_escrow.js"
   }
 }
