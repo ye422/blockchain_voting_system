@@ -25,24 +25,24 @@ Rule: a user escrows an NFT (no TTL), it shows up in the list, and anyone can sw
 ## 4) Work breakdown (ordered)
 
 ### Phase A — Contract & Tests
-1. Scaffold Hardhat project folder or reuse existing; add `SimpleNFTEscrow.sol`.
-2. Storage: `struct Deposit { address owner; address nft; uint256 tokenId; bool active; }`, `mapping(uint256 => Deposit) deposits`, `uint256 nextId`.
-3. `deposit`: uses `IERC721(nft).safeTransferFrom(msg.sender, address(this), tokenId)`; require ERC721 interface via `supportsInterface`; emit `Deposited`.
-4. `withdraw`: owner-only, `active`, transfer back via `safeTransferFrom`; set inactive; emit `Withdrawn`.
-5. `swap`: checks target `active`; taker escrows via `safeTransferFrom`; then transfer target NFT to taker, taker NFT to target owner; close both; emit `Swapped(targetId, takerDepositId, msg.sender, targetOwner)`; function is atomic (ordered transfers as listed).
-6. Security: add `nonReentrant`; block zero address NFT; short revert reasons; handle malicious onReceive by relying on `safeTransferFrom` (will revert, leaving both deposits untouched).
-7. Tests (Hardhat): deposit success, withdraw success, swap success, reentrancy attempt, non-owner withdraw revert, swap on closed/unknown id revert, non-ERC721 address revert, double withdraw revert, transfer failure revert ordering (target stays active if taker transfer fails).
-8. Deploy script for devnet; export address + ABI JSON to `/frontend` config.
+1. ✅ Scaffolded & added `SimpleNFTEscrow.sol`.
+2. ✅ Storage implemented (`Deposit` struct, mapping, nextId).
+3. ✅ `deposit` uses `safeTransferFrom` and `supportsInterface`; emits `Deposited`.
+4. ✅ `withdraw` owner-only; emits `Withdrawn`.
+5. ✅ `swap` atomic escrow + swap; emits `Swapped`.
+6. ✅ Security: `nonReentrant`, zero-address/NFT check, short reverts.
+7. ✅ Tests added for deposit/withdraw/swap and core reverts (run `npm run test:escrow`).
+8. ✅ Deploy script added (`npm run deploy:escrow`).
+Remaining: reentrancy attempt test, non-ERC721 address revert test, transfer failure ordering test (can extend test file if needed).
 
 ### Phase B — Minimal Frontend ( `/nft-exchange` )
-1. Add env/config for contract address + chain RPC.
-2. Add ethers client hook for `deposit`, `swap`, `withdraw` (Metamask signer).
-3. Build “Deposit” modal: load user NFTs, pick one, call `deposit`, show tx hash, refresh listings.
-4. Build listing grid: show `depositId`, owner short address/ENS, NFT metadata, status.
-5. Build “Swap” modal: select my NFT, call `swap(targetDepositId, ...)`, show result; disable if target not active.
-6. Build “Withdraw” action for my active deposits; disable when closed.
-7. Add banner text: “Deposited NFTs can be taken instantly by anyone who swaps with their own NFT.”
-8. Basic loading/error handling; no advanced filters.
+1. ✅ Added config key for escrow contract address + basic form UI on `/nft-exchange`.
+2. ✅ Ethers client helper for `deposit`, `swap`, `withdraw` (Metamask signer) + ABI bundled.
+3. ✅ Quick panel (Deposit/Swap/Withdraw inputs) wired to on-chain calls with toast feedback; includes risk warning.
+4. TODO Build listing grid: show `depositId`, owner short address/ENS, NFT metadata, status (from API or on-chain).
+5. TODO Swap modal with wallet NFT picker; disable if target not active.
+6. TODO Withdraw action for my active deposits (hook into listing grid state).
+7. TODO Better empty/error handling and data refresh loop post-tx.
 
 ### Phase C — Optional Indexer + Supabase Cache
 1. Supabase tables already exist:

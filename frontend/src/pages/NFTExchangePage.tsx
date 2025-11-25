@@ -15,6 +15,7 @@ import useNFTTradingStore, { NFTTradingTab } from "../stores/nftTradingStore";
 import type { UserSummary } from "../types/nftTrading";
 import { checkHasSBT } from "../lib/sbt";
 import { useToast } from "../components/ToastProvider";
+import { depositToEscrow, swapOnEscrow, withdrawFromEscrow } from "../lib/escrow";
 import "./NFTExchangePage.css";
 
 interface TabConfig {
@@ -270,6 +271,8 @@ export default function NFTExchangePage() {
       </header>
 
       <main className="nft-exchange-content">
+        <EscrowQuickPanel />
+
         <div className="nft-exchange-tabs">
           {TAB_CONFIG.map((tab) => (
             <TabButton
@@ -397,6 +400,109 @@ function SummaryStat({ label, value }: { label: string; value: string | number }
       <p>{label}</p>
       <strong>{value}</strong>
     </div>
+  );
+}
+
+function EscrowQuickPanel() {
+  const { showToast } = useToast();
+  const [depositNft, setDepositNft] = useState("");
+  const [depositTokenId, setDepositTokenId] = useState("");
+  const [swapTargetId, setSwapTargetId] = useState("");
+  const [swapNft, setSwapNft] = useState("");
+  const [swapTokenId, setSwapTokenId] = useState("");
+  const [withdrawId, setWithdrawId] = useState("");
+  const [isRunning, setIsRunning] = useState(false);
+
+  const runTx = async (action: string, fn: () => Promise<any>) => {
+    setIsRunning(true);
+    try {
+      const tx = await fn();
+      showToast({ title: `${action} tx sent`, description: tx.hash });
+      const receipt = await tx.wait();
+      showToast({ title: `${action} confirmed`, description: `Block ${receipt.blockNumber}` });
+    } catch (error: any) {
+      console.error(`${action} failed`, error);
+      showToast({
+        title: `${action} failed`,
+        description: error?.shortMessage || error?.message || "Unknown error",
+        variant: "error",
+      });
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  return (
+    <section className="escrow-quick-panel">
+      <div className="escrow-quick-panel__header">
+        <div>
+          <p className="escrow-quick-panel__eyebrow">Instant swap (no approval step)</p>
+          <h2>Escrow Quick Actions</h2>
+          <p className="escrow-quick-panel__note">Deposited NFTs can be taken instantly by anyone who swaps with their own NFT.</p>
+        </div>
+      </div>
+      <div className="escrow-quick-panel__grid">
+        <div className="escrow-card">
+          <h3>Deposit NFT</h3>
+          <label className="escrow-label">
+            NFT contract
+            <input value={depositNft} onChange={(e) => setDepositNft(e.target.value)} placeholder="0xabc..." />
+          </label>
+          <label className="escrow-label">
+            Token ID
+            <input value={depositTokenId} onChange={(e) => setDepositTokenId(e.target.value)} placeholder="e.g. 1" />
+          </label>
+          <button
+            type="button"
+            className="escrow-button"
+            disabled={isRunning || !depositNft || !depositTokenId}
+            onClick={() => runTx("Deposit", () => depositToEscrow(depositNft, depositTokenId))}
+          >
+            {isRunning ? "Working..." : "Deposit"}
+          </button>
+        </div>
+
+        <div className="escrow-card">
+          <h3>Swap</h3>
+          <label className="escrow-label">
+            Target deposit ID
+            <input value={swapTargetId} onChange={(e) => setSwapTargetId(e.target.value)} placeholder="e.g. 1" />
+          </label>
+          <label className="escrow-label">
+            My NFT contract
+            <input value={swapNft} onChange={(e) => setSwapNft(e.target.value)} placeholder="0xabc..." />
+          </label>
+          <label className="escrow-label">
+            My token ID
+            <input value={swapTokenId} onChange={(e) => setSwapTokenId(e.target.value)} placeholder="e.g. 2" />
+          </label>
+          <button
+            type="button"
+            className="escrow-button"
+            disabled={isRunning || !swapTargetId || !swapNft || !swapTokenId}
+            onClick={() => runTx("Swap", () => swapOnEscrow(swapTargetId, swapNft, swapTokenId))}
+          >
+            {isRunning ? "Working..." : "Swap"}
+          </button>
+        </div>
+
+        <div className="escrow-card">
+          <h3>Withdraw</h3>
+          <label className="escrow-label">
+            Deposit ID
+            <input value={withdrawId} onChange={(e) => setWithdrawId(e.target.value)} placeholder="e.g. 3" />
+          </label>
+          <button
+            type="button"
+            className="escrow-button"
+            disabled={isRunning || !withdrawId}
+            onClick={() => runTx("Withdraw", () => withdrawFromEscrow(withdrawId))}
+          >
+            {isRunning ? "Working..." : "Withdraw"}
+          </button>
+        </div>
+      </div>
+    </section>
   );
 }
 

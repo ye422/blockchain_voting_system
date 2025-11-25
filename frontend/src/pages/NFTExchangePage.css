@@ -669,6 +669,91 @@
   color: rgba(226, 232, 240, 0.9);
 }
 
+.escrow-quick-panel {
+  background: #0b1224;
+  border: 1px solid #1f2937;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.escrow-quick-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.escrow-quick-panel__eyebrow {
+  color: #8b5cf6;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 4px 0;
+}
+
+.escrow-quick-panel__note {
+  margin: 4px 0 0 0;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+.escrow-quick-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.escrow-card {
+  border: 1px solid #1f2937;
+  border-radius: 10px;
+  padding: 14px;
+  background: #0f172a;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.escrow-card h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.escrow-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.escrow-label input {
+  background: #111827;
+  border: 1px solid #1f2937;
+  color: #e5e7eb;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.escrow-button {
+  margin-top: 6px;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.escrow-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 @media (max-width: 768px) {
   .nft-exchange-header-content {
     flex-direction: column;
