@@ -140,7 +140,20 @@ async function main() {
   console.log(`[escrow-indexer] done. saved state at block ${toBlock}`);
 }
 
-main().catch((err) => {
-  console.error("[escrow-indexer] failed:", err);
+async function runForever() {
+  console.log("[escrow-indexer] Starting continuous indexing...");
+  while (true) {
+    try {
+      await main();
+    } catch (err) {
+      console.error("[escrow-indexer] Error in loop:", err);
+    }
+    // Wait 10 seconds before next run
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+  }
+}
+
+runForever().catch((err) => {
+  console.error("[escrow-indexer] Fatal error:", err);
   process.exit(1);
 });

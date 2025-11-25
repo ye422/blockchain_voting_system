@@ -195,6 +195,25 @@ async function authorizeRewardMinter(web3, rewardAbi, rewardAddress, deployer, n
   console.log('  ✓ Authorization tx hash:', tx.transactionHash);
 }
 
+async function updateMascotURI(web3, rewardAbi, rewardAddress, deployer, ballotId, mascotCID) {
+  const contract = new web3.eth.Contract(rewardAbi, rewardAddress);
+  const mascotGateway = 'https://gateway.pinata.cloud/ipfs/';
+  const mascotURI = `${mascotGateway}${mascotCID}`;
+
+  console.log(`> Updating mascot URI for ballot ${ballotId}`);
+  console.log(`  Mascot CID: ${mascotCID}`);
+  console.log(`  Mascot URI: ${mascotURI}`);
+
+  try {
+    const tx = await contract.methods
+      .setMascot(ballotId, mascotURI)
+      .send({ from: deployer });
+    console.log('  ✓ Mascot updated successfully. Tx hash:', tx.transactionHash);
+  } catch (error) {
+    console.warn('  ⚠ Failed to update mascot URI:', error.message);
+  }
+}
+
 async function main() {
   loadDeployEnv();
   const artifact = loadArtifact();
@@ -237,8 +256,8 @@ async function main() {
   );
   const rewardAddress = resolveAddress(
     process.env.REWARD_NFT_ADDRESS ||
-      process.env.VOTING_REWARD_NFT_ADDRESS ||
-      process.env.REACT_APP_REWARD_NFT_ADDRESS,
+    process.env.VOTING_REWARD_NFT_ADDRESS ||
+    process.env.REACT_APP_REWARD_NFT_ADDRESS,
     artifact?.contracts?.VotingRewardNFT?.address,
     'REWARD_NFT'
   );
@@ -324,6 +343,19 @@ async function main() {
       receipt.contractAddress,
       artifact.contracts.VotingWithSBT?.address
     );
+
+    // Update mascot URI if provided
+    const mascotCID = process.env.MASCOT_CID;
+    if (mascotCID) {
+      await updateMascotURI(
+        web3,
+        artifact.contracts.VotingRewardNFT.abi,
+        rewardAddress,
+        deployer,
+        ballotId,
+        mascotCID
+      );
+    }
   }
 
   const updatedArtifact = artifact || { contracts: {}, network: {}, timestamp: new Date().toISOString() };

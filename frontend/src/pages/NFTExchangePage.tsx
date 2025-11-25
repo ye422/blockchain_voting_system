@@ -32,6 +32,7 @@ type NftCardData = {
   tokenId: string;
   contract: string;
   badge?: string;
+  description?: string;
 };
 
 export default function NFTExchangePage() {
@@ -56,6 +57,9 @@ export default function NFTExchangePage() {
   const [swapTarget, setSwapTarget] = useState<NftCardData | null>(null);
   const [swapLoading, setSwapLoading] = useState(false);
   const [withdrawLoadingId, setWithdrawLoadingId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "tokenId">("newest");
+  const [selectedMarketNFT, setSelectedMarketNFT] = useState<NftCardData | null>(null);
   const metadataCache = useRef<Map<string, string>>(new Map());
 
   const mergedMarketListings = useMemo(() => {
@@ -71,10 +75,36 @@ export default function NFTExchangePage() {
     return merged;
   }, [marketListings, listedNfts]);
   const filteredMarketListings = useMemo(() => {
-    if (!detectedWallet) return mergedMarketListings;
-    const me = detectedWallet.toLowerCase();
-    return mergedMarketListings.filter((n) => !n.ownerWallet || n.ownerWallet.toLowerCase() !== me);
-  }, [mergedMarketListings, detectedWallet]);
+    let filtered = mergedMarketListings;
+
+    // Filter out own NFTs
+    if (detectedWallet) {
+      const me = detectedWallet.toLowerCase();
+      filtered = filtered.filter((n) => !n.ownerWallet || n.ownerWallet.toLowerCase() !== me);
+    }
+
+    // Search filter
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter((n) =>
+        n.name.toLowerCase().includes(term) ||
+        n.tokenId.includes(term) ||
+        n.rarity.toLowerCase().includes(term)
+      );
+    }
+
+    // Sort
+    const sorted = [...filtered];
+    if (sortBy === "newest") {
+      sorted.sort((a, b) => Number(b.id) - Number(a.id));
+    } else if (sortBy === "oldest") {
+      sorted.sort((a, b) => Number(a.id) - Number(b.id));
+    } else if (sortBy === "tokenId") {
+      sorted.sort((a, b) => Number(a.tokenId) - Number(b.tokenId));
+    }
+
+    return sorted;
+  }, [mergedMarketListings, detectedWallet, searchTerm, sortBy]);
 
   // Hydrate wallet state if user already connected MetaMask outside of this session
   useEffect(() => {
@@ -119,7 +149,8 @@ export default function NFTExchangePage() {
 
   const hydrateListingImages = async (deposits: NftCardData[]) => {
     const provider = resolveProvider();
-    const updated: Record<string, string> = {};
+    const updatedImages: Record<string, string> = {};
+    const updatedNames: Record<string, string> = {};
 
     await Promise.all(
       deposits.map(async (d) => {
@@ -127,7 +158,7 @@ export default function NFTExchangePage() {
         const cacheKey = `${d.contract.toLowerCase()}-${d.tokenId}`;
         const cached = metadataCache.current.get(cacheKey);
         if (cached) {
-          updated[cacheKey] = cached;
+          updatedImages[cacheKey] = cached;
           return;
         }
         try {
@@ -138,43 +169,68 @@ export default function NFTExchangePage() {
           if (!resp.ok) {
             return;
           }
-          const contentType = resp.headers.get("content-type") || "";
           let imageUrl = "";
-          if (contentType.includes("application/json")) {
-            const meta = await resp.json();
-            if (meta?.image) {
-              imageUrl = toHttp(String(meta.image));
+          let nftName = "";
+
+          try {
+            const jsonText = await resp.text();
+            try {
+              const meta = JSON.parse(jsonText);
+              // It's a valid JSON
+              if (meta?.image) {
+                imageUrl = toHttp(String(meta.image));
+              }
+              if (meta?.name) {
+                nftName = String(meta.name);
+              }
+            } catch {
+              // Not a JSON, assume the URI itself is the image
+              if (!jsonText.includes("<!DOCTYPE html>") && !jsonText.includes("<html")) {
+                imageUrl = url;
+              }
             }
-          } else {
+          } catch (parseError) {
+            console.warn("Failed to parse response for", d.contract, d.tokenId, parseError);
             imageUrl = url;
           }
           if (imageUrl) {
             metadataCache.current.set(cacheKey, imageUrl);
-            updated[cacheKey] = imageUrl;
+            updatedImages[cacheKey] = imageUrl;
+          }
+          if (nftName) {
+            updatedNames[cacheKey] = nftName;
           }
         } catch (err) {
-          console.warn("Failed to hydrate image for", d.contract, d.tokenId, err);
+          console.warn("Failed to hydrate metadata for", d.contract, d.tokenId, err);
         }
       })
     );
 
-    if (Object.keys(updated).length === 0) return;
+    if (Object.keys(updatedImages).length === 0 && Object.keys(updatedNames).length === 0) return;
     setMarketListings((prev) =>
       prev.map((item) => {
         const key = `${item.contract.toLowerCase()}-${item.tokenId}`;
-        if (updated[key]) {
-          return { ...item, image: updated[key] };
+        const updates: Partial<NftCardData> = {};
+        if (updatedImages[key]) {
+          updates.image = updatedImages[key];
         }
-        return item;
+        if (updatedNames[key]) {
+          updates.name = updatedNames[key];
+        }
+        return Object.keys(updates).length > 0 ? { ...item, ...updates } : item;
       })
     );
     setListedNfts((prev) =>
       prev.map((item) => {
         const key = `${item.contract.toLowerCase()}-${item.tokenId}`;
-        if (updated[key]) {
-          return { ...item, image: updated[key] };
+        const updates: Partial<NftCardData> = {};
+        if (updatedImages[key]) {
+          updates.image = updatedImages[key];
         }
-        return item;
+        if (updatedNames[key]) {
+          updates.name = updatedNames[key];
+        }
+        return Object.keys(updates).length > 0 ? { ...item, ...updates } : item;
       })
     );
   };
@@ -357,9 +413,7 @@ export default function NFTExchangePage() {
     setListedNfts([]);
   }, [detectedWallet]);
 
-  const headerHint = useMemo(() => {
-    return "내 NFT를 선택해 바로 마켓에 올리고, 아래에서 올린 목록을 관리하세요.";
-  }, []);
+
 
   const handleListToMarket = async (nft: NftCardData) => {
     setListing(true);
@@ -530,7 +584,7 @@ export default function NFTExchangePage() {
             <div>
               <p className="nft-subtitle">NFT 거래소</p>
               <h1>NFT 거래소</h1>
-              <p className="nft-hint">{headerHint}</p>
+
             </div>
           </div>
           <div className="nft-exchange-actions">
@@ -570,7 +624,7 @@ export default function NFTExchangePage() {
                 <div>
                   <p className="nft-subtitle">내 NFT</p>
                   <h2>보유한 NFT 목록</h2>
-                  <p className="nft-hint">사진 카드에서 선택해 “마켓에 올리기”를 누르면 아래 마켓 섹션으로 이동합니다.</p>
+
                 </div>
               </div>
               <NftGrid
@@ -588,29 +642,55 @@ export default function NFTExchangePage() {
                 <div>
                   <p className="nft-subtitle">마켓 대기열</p>
                   <h2>마켓에 올라간 NFT</h2>
-                  <p className="nft-hint">이 섹션의 카드는 이미 예치(escrow)된 것으로 가정합니다.</p>
+
                 </div>
               </div>
-            <NftGrid
-              nfts={listedNfts}
-              emptyText="마켓에 올린 NFT가 없습니다."
-              actionLabel={withdrawLoadingId ? "처리 중..." : "내리기"}
-              actionIcon={<RotateCcw size={16} />}
-              onAction={handleWithdrawOnChain}
-              badge="LISTED"
-              disabled={!!withdrawLoadingId}
-            />
-          </div>
-        </section>
-      ) : (
-        <section className="exchange-column">
+              <NftGrid
+                nfts={listedNfts}
+                emptyText="마켓에 올린 NFT가 없습니다."
+                actionLabel={withdrawLoadingId ? "처리 중..." : "내리기"}
+                actionIcon={<RotateCcw size={16} />}
+                onAction={handleWithdrawOnChain}
+                badge="LISTED"
+                disabled={!!withdrawLoadingId}
+              />
+            </div>
+          </section>
+        ) : (
+          <section className="exchange-column">
             <div className="exchange-column__header">
               <div>
                 <p className="nft-subtitle">마켓</p>
                 <h2>전체 마켓 NFT</h2>
-                <p className="nft-hint">모든 예치된 NFT를 한눈에. 실제 데이터 연동 시 인덱서/이벤트를 사용하세요.</p>
               </div>
             </div>
+
+            {/* Search and Sort Controls */}
+            <div className="market-controls">
+              <div className="search-box">
+                <input
+                  type="text"
+                  placeholder="NFT 이름, 토큰 ID, 레어도로 검색..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="search-input"
+                />
+              </div>
+              <div className="sort-box">
+                <label htmlFor="sort-select">정렬:</label>
+                <select
+                  id="sort-select"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as "newest" | "oldest" | "tokenId")}
+                  className="sort-select"
+                >
+                  <option value="newest">최신순</option>
+                  <option value="oldest">오래된순</option>
+                  <option value="tokenId">토큰 ID순</option>
+                </select>
+              </div>
+            </div>
+
             <NftGrid
               nfts={filteredMarketListings}
               emptyText="마켓에 올라온 NFT가 없습니다."
@@ -619,6 +699,7 @@ export default function NFTExchangePage() {
               onAction={(nft) => {
                 setSwapTarget(nft);
               }}
+              onCardClick={(nft) => setSelectedMarketNFT(nft)}
               renderAction={(nft) => {
                 const isMine =
                   nft.ownerWallet && detectedWallet
@@ -662,6 +743,96 @@ export default function NFTExchangePage() {
           </section>
         )}
       </main>
+
+      {/* NFT Detail Modal */}
+      {selectedMarketNFT && (
+        <div className="nft-modal-overlay" onClick={() => setSelectedMarketNFT(null)}>
+          <div className="nft-modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="nft-modal-close" onClick={() => setSelectedMarketNFT(null)}>
+              ✕
+            </button>
+
+            <div className="nft-modal-grid">
+              {/* 왼쪽: 이미지 */}
+              <div className="nft-modal-image-section">
+                <img
+                  src={selectedMarketNFT.image}
+                  alt={selectedMarketNFT.name}
+                  className="nft-modal-image"
+                />
+              </div>
+
+              {/* 오른쪽: 상세 정보 */}
+              <div className="nft-modal-details">
+                <div className="nft-modal-header">
+                  <h2 className="nft-modal-title">{selectedMarketNFT.name}</h2>
+                  <span className="nft-modal-rarity" style={{
+                    color: selectedMarketNFT.rarity === "레전더리" ? "#fbbf24" :
+                      selectedMarketNFT.rarity === "에픽" ? "#a78bfa" :
+                        selectedMarketNFT.rarity === "레어" ? "#60a5fa" : "#94a3b8"
+                  }}>
+                    {selectedMarketNFT.rarity}
+                  </span>
+                </div>
+
+                <div className="nft-modal-info-grid">
+                  <div className="nft-modal-info-item">
+                    <span className="nft-modal-label">🎫 토큰 ID</span>
+                    <span className="nft-modal-value">{selectedMarketNFT.tokenId}</span>
+                  </div>
+
+                  <div className="nft-modal-info-item">
+                    <span className="nft-modal-label">📜 컨트랙트</span>
+                    <span className="nft-modal-value mono">
+                      {selectedMarketNFT.contract.substring(0, 6)}...{selectedMarketNFT.contract.substring(selectedMarketNFT.contract.length - 4)}
+                    </span>
+                  </div>
+
+                  {selectedMarketNFT.ownerWallet && (
+                    <div className="nft-modal-info-item">
+                      <span className="nft-modal-label">👤 소유자</span>
+                      <span className="nft-modal-value mono">
+                        {selectedMarketNFT.ownerWallet.substring(0, 6)}...{selectedMarketNFT.ownerWallet.substring(selectedMarketNFT.ownerWallet.length - 4)}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="nft-modal-info-item">
+                    <span className="nft-modal-label">🏷️ 상태</span>
+                    <span className="nft-modal-value">{selectedMarketNFT.badge || "마켓 등록"}</span>
+                  </div>
+                </div>
+
+                <div className="nft-modal-description">
+                  <h3 className="nft-modal-section-title">📝 설명</h3>
+                  <p className="nft-modal-description-text">
+                    이 NFT는 현재 마켓에 등록되어 있습니다.
+                    스왑 기능을 통해 내 NFT와 교환할 수 있습니다.
+                  </p>
+                </div>
+
+                <div className="nft-modal-actions">
+                  <button
+                    className="nft-modal-btn nft-modal-btn-primary"
+                    onClick={() => {
+                      setSwapTarget(selectedMarketNFT);
+                      setSelectedMarketNFT(null);
+                    }}
+                  >
+                    스왑하기 🔄
+                  </button>
+                  <button
+                    className="nft-modal-btn nft-modal-btn-secondary"
+                    onClick={() => setSelectedMarketNFT(null)}
+                  >
+                    닫기
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -686,6 +857,7 @@ function NftGrid({
   renderAction,
   badge,
   disabled,
+  onCardClick,
 }: {
   nfts: NftCardData[];
   emptyText: string;
@@ -695,6 +867,7 @@ function NftGrid({
   renderAction?: (nft: NftCardData) => React.ReactNode;
   badge?: string;
   disabled?: boolean;
+  onCardClick?: (nft: NftCardData) => void;
 }) {
   if (nfts.length === 0) {
     return <div className="nft-grid-empty">{emptyText}</div>;
@@ -703,9 +876,24 @@ function NftGrid({
     <div className="nft-card-grid">
       {nfts.map((nft) => (
         <article key={`${nft.id}-${nft.contract}`} className="nft-card">
-          <div className="nft-card__image">
+          <div
+            className="nft-card__image"
+            onClick={() => onCardClick?.(nft)}
+            style={{ cursor: onCardClick ? 'pointer' : 'default' }}
+          >
             <img src={nft.image || undefined} alt={nft.name} />
-            <span className="nft-chip">{nft.rarity}</span>
+            <span
+              className={`rarity-badge ${nft.rarity === "레전더리" || nft.rarity === "Legendary"
+                ? "rarity-badge--legendary"
+                : nft.rarity === "에픽" || nft.rarity === "Epic"
+                  ? "rarity-badge--epic"
+                  : nft.rarity === "레어" || nft.rarity === "Rare"
+                    ? "rarity-badge--rare"
+                    : "rarity-badge--common"
+                }`}
+            >
+              {nft.rarity}
+            </span>
             {badge ? <span className="nft-chip nft-chip--secondary">{badge}</span> : null}
           </div>
           <div className="nft-card__body">

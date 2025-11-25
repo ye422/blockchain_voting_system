@@ -441,6 +441,32 @@ if [ "$SHOULD_DEPLOY" = true ]; then
     export BALLOT_OPENS_AT BALLOT_CLOSES_AT BALLOT_ANNOUNCES_AT BALLOT_EXPECTED_VOTERS
     export GOQUORUM_CONS_ALGO="${CONSENSUS}"
 
+    # Generate NFT metadata if configured
+    if [[ -n "${NFT_NAME:-}" ]] && [[ -n "${MASCOT_CID:-}" ]] && [[ -n "${PINATA_API_KEY:-}" ]] && [[ -n "${PINATA_SECRET_KEY:-}" ]]; then
+        echo -e "${YELLOW}Generating NFT metadata from image CID...${NC}"
+        # Run metadata generator
+        node "${PROJECT_ROOT}/scripts/generate_nft_metadata.js" \
+            --image "${MASCOT_CID}" \
+            --ballot "${BALLOT_ID}" \
+            --name "${NFT_NAME}"
+        
+        if [[ -f ".last_metadata_cid" ]]; then
+            METADATA_CID=$(cat ".last_metadata_cid")
+            rm ".last_metadata_cid"
+            echo -e "${GREEN}✓ Metadata generated: ${METADATA_CID}${NC}"
+            echo -e "${YELLOW}  Overriding MASCOT_CID with metadata CID${NC}"
+            export MASCOT_CID="${METADATA_CID}"
+        else
+            echo -e "${RED}✗ Metadata generation failed (CID file not found)${NC}"
+            echo -e "${YELLOW}  Using original MASCOT_CID (image)${NC}"
+        fi
+    elif [[ -n "${NFT_NAME:-}" ]] && [[ -n "${MASCOT_CID:-}" ]]; then
+        echo -e "${YELLOW}⚠️  NFT_NAME set but missing Pinata keys${NC}"
+        echo -e "${YELLOW}  Using MASCOT_CID as-is (no metadata generation)${NC}"
+    elif [[ -n "${MASCOT_CID:-}" ]]; then
+        echo -e "${YELLOW}Using MASCOT_CID from deploy.env${NC}"
+    fi
+
     node "${SCRIPT_DIR}/deploy_sbt_system.js"
     
     if [[ -f "${ARTIFACTS_DIR}/sbt_deployment.json" ]]; then

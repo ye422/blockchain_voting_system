@@ -27,11 +27,7 @@ export default function MyNFTsPage() {
         navigate("/email-verification");
     }, [navigate, resetVerificationFlow]);
 
-    const withMintedAt = (nfts: any[]) =>
-        nfts.map((nft) => ({
-            ...nft,
-            mintedAt: nft.mintedAt || nft.metadata?.mintedAt || new Date().toISOString(),
-        }));
+
 
     useEffect(() => {
         const loadNFTs = async () => {
@@ -47,7 +43,7 @@ export default function MyNFTsPage() {
                 const address = accounts[0];
                 setWalletAddress(address);
                 const userNFTs = await getRewardNFTs(address);
-                setNfts(withMintedAt(userNFTs));
+                setNfts(userNFTs);
             } catch (error) {
                 console.error("Error loading NFTs:", error);
             } finally {
@@ -69,7 +65,7 @@ export default function MyNFTsPage() {
 
                 try {
                     const userNFTs = await getRewardNFTs(newAddress);
-                    setNfts(withMintedAt(userNFTs));
+                    setNfts(userNFTs);
                 } catch (error) {
                     console.error("Error reloading NFTs:", error);
                 } finally {
@@ -306,7 +302,7 @@ export default function MyNFTsPage() {
                                             </div>
                                         )}
                                         <div className="nft-card-header">
-                                            <h3 className="nft-token-id">NFT #{nft.tokenId}</h3>
+                                            <h3 className="nft-token-id">{nft.metadata?.name || `NFT #${nft.tokenId}`}</h3>
                                             <span className="nft-rarity" style={{ color: rarity.color }}>
                                                 {rarity.name}
                                             </span>
@@ -340,7 +336,7 @@ export default function MyNFTsPage() {
                             {/* 오른쪽: 상세 정보 */}
                             <div className="nft-modal-details">
                                 <div className="nft-modal-header">
-                                    <h2 className="nft-modal-title">NFT #{selectedNFT.tokenId}</h2>
+                                    <h2 className="nft-modal-title">{selectedNFT.metadata?.name || `NFT #${selectedNFT.tokenId}`}</h2>
                                     <span
                                         className="nft-modal-rarity"
                                         style={{ color: getRarity(selectedNFT.tokenId).color }}
@@ -376,8 +372,8 @@ export default function MyNFTsPage() {
                                 <div className="nft-modal-description">
                                     <h3 className="nft-modal-section-title">📝 설명</h3>
                                     <p className="nft-modal-description-text">
-                                        이 NFT는 {selectedNFT.ballotId} 투표에 참여한 증거로 발행되었습니다.
-                                        블록체인에 영구적으로 기록되며, 투표 참여를 인증합니다.
+                                        {selectedNFT.metadata?.description ||
+                                            `이 NFT는 ${selectedNFT.ballotId} 투표에 참여한 증거로 발행되었습니다. 블록체인에 영구적으로 기록되며, 투표 참여를 인증합니다.`}
                                     </p>
                                 </div>
 
