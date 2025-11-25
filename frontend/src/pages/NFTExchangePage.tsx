@@ -9,6 +9,11 @@ import { useToast } from "../components/ToastProvider";
 import { depositToEscrow, swapOnEscrow, withdrawFromEscrow } from "../lib/escrow";
 import { getRewardNFTs, REWARD_NFT_ADDR } from "../lib/sbt";
 import { getDeposits } from "../lib/nftTradingApi";
+import RewardAbi from "../abi/VotingRewardNFT.json";
+import { ethers } from "ethers";
+import { getConfig } from "../lib/config";
+
+const { SIMPLE_ESCROW_ADDRESS } = getConfig();
 import "./NFTExchangePage.css";
 
 type NftCardData = {
@@ -219,6 +224,15 @@ export default function NFTExchangePage() {
   const handleListToMarket = async (nft: NftCardData) => {
     setListing(true);
     try {
+      const provider = new ethers.BrowserProvider((window as any).ethereum);
+      const signer = await provider.getSigner();
+      const reward = new ethers.Contract(REWARD_NFT_ADDR, (RewardAbi as any).abi || RewardAbi, signer);
+      const isApproved = await reward.isApprovedForAll(await signer.getAddress(), SIMPLE_ESCROW_ADDRESS);
+      if (!isApproved) {
+        const approveTx = await reward.setApprovalForAll(SIMPLE_ESCROW_ADDRESS, true);
+        showToast({ title: "승인 중...", description: approveTx.hash });
+        await approveTx.wait();
+      }
       await depositToEscrow(nft.contract, nft.tokenId);
       setAvailableNfts((prev) => prev.filter((n) => n.id !== nft.id));
       setListedNfts((prev) => [...prev, { ...nft, badge: "LISTED" }]);
