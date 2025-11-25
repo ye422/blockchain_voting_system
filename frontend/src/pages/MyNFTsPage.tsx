@@ -27,6 +27,12 @@ export default function MyNFTsPage() {
         navigate("/email-verification");
     }, [navigate, resetVerificationFlow]);
 
+    const withMintedAt = (nfts: any[]) =>
+        nfts.map((nft) => ({
+            ...nft,
+            mintedAt: nft.mintedAt || nft.metadata?.mintedAt || new Date().toISOString(),
+        }));
+
     useEffect(() => {
         const loadNFTs = async () => {
             try {
@@ -41,7 +47,7 @@ export default function MyNFTsPage() {
                 const address = accounts[0];
                 setWalletAddress(address);
                 const userNFTs = await getRewardNFTs(address);
-                setNfts(userNFTs);
+                setNfts(withMintedAt(userNFTs));
             } catch (error) {
                 console.error("Error loading NFTs:", error);
             } finally {
@@ -63,7 +69,7 @@ export default function MyNFTsPage() {
 
                 try {
                     const userNFTs = await getRewardNFTs(newAddress);
-                    setNfts(userNFTs);
+                    setNfts(withMintedAt(userNFTs));
                 } catch (error) {
                     console.error("Error reloading NFTs:", error);
                 } finally {
@@ -305,26 +311,6 @@ export default function MyNFTsPage() {
                                                 {rarity.name}
                                             </span>
                                         </div>
-                                        <div className="nft-card-body">
-                                            <div className="nft-info-row">
-                                                <span className="nft-info-label">Ballot ID</span>
-                                                <span className="nft-info-value nft-ballot-id">
-                                                    {nft.ballotId}
-                                                </span>
-                                            </div>
-                                            <div className="nft-info-row">
-                                                <span className="nft-info-label">투표한 후보</span>
-                                                <span className="nft-info-value">#{parseInt(nft.proposalId) + 1}</span>
-                                            </div>
-                                            <div className="nft-info-row" style={{ border: 'none' }}>
-                                                <span className="nft-info-label">토큰 ID</span>
-                                                <span className="nft-info-value">{nft.tokenId}</span>
-                                            </div>
-                                        </div>
-                                        <div className="nft-card-footer">
-                                            <span className="nft-timestamp">🕐 {new Date().toLocaleDateString('ko-KR')}</span>
-                                            <button className="nft-share-btn">공유 📤</button>
-                                        </div>
                                     </div>
                                 );
                             })}
@@ -382,7 +368,7 @@ export default function MyNFTsPage() {
                                     <div className="nft-modal-info-item">
                                         <span className="nft-modal-label">⏰ 발행 시간</span>
                                         <span className="nft-modal-value">
-                                            {new Date().toLocaleString('ko-KR')}
+                                            {new Date(selectedNFT.mintedAt || selectedNFT.createdAt || Date.now()).toLocaleString('ko-KR')}
                                         </span>
                                     </div>
                                 </div>

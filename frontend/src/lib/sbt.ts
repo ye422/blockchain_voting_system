@@ -207,41 +207,46 @@ export async function getRewardNFTs(
             return [];
         }
 
+        const toHttp = (uri: string) => uri.replace(/^ipfs:\/\//, "https://gateway.pinata.cloud/ipfs/");
+
         const nfts = await Promise.all(
             (tokenIds as string[]).map(async (tokenId) => {
                 const ballotId = await contract.methods.getBallotId(tokenId).call();
                 const voteRecord = await contract.methods.getVoteRecord(tokenId).call();
 
-                // Get tokenURI (base URL without tokenId)
                 let imageUrl = "";
-                let metadata = null;
+                let metadata: any = null;
 
                 try {
                     const tokenURI = await contract.methods.tokenURI(tokenId).call();
-
-                    // tokenURI returns base_url/tokenId format (e.g., ipfs://QmXyz.../0)
-                    // We need to remove the /tokenId part and use the base image
-                    let uri = String(tokenURI);
-
-                    // Remove the trailing /tokenId (e.g., /0, /1, /2)
-                    const lastSlashIndex = uri.lastIndexOf('/');
-                    if (lastSlashIndex !== -1 && /^\d+$/.test(uri.substring(lastSlashIndex + 1))) {
-                        uri = uri.substring(0, lastSlashIndex);
+                    const uri = String(tokenURI);
+                    const metadataUrl = toHttp(uri);
+                    const resp = await fetch(metadataUrl);
+                    if (!resp.ok) {
+                        throw new Error(`metadata fetch failed: ${resp.status}`);
                     }
-
-                    // Convert ipfs:// to https gateway
-                    imageUrl = uri.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
-
-                    console.log(`Token ${tokenId} image URL:`, imageUrl);
+                    const contentType = resp.headers.get("content-type") || "";
+                    if (contentType.includes("application/json")) {
+                        metadata = await resp.json();
+                        const rawImage: string | undefined = metadata?.image;
+                        if (rawImage) {
+                            imageUrl = toHttp(rawImage);
+                        }
+                    } else {
+                        // tokenURI already points directly to an image (e.g., PNG)
+                        imageUrl = metadataUrl;
+                    }
                 } catch (uriError) {
-                    console.warn(`Failed to get tokenURI for token ${tokenId}:`, uriError);
+                    console.warn(`Failed to load metadata for token ${tokenId}:`, uriError);
                     imageUrl = "";
-                } return {
+                }
+
+                return {
                     tokenId: tokenId,
                     ballotId: String(ballotId),
                     proposalId: (voteRecord as any).proposalId.toString(),
-                    imageUrl: imageUrl,
-                    metadata: metadata,
+                    imageUrl,
+                    metadata,
                 };
             })
         );

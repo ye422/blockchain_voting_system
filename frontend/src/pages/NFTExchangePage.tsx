@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeftRight, Loader2, Upload, RotateCcw, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import useEmailVerificationStore from "../stores/emailVerificationStore";
@@ -20,9 +20,12 @@ try {
 } catch {
   SIMPLE_ESCROW_ADDRESS = "";
 }
+const ERC721_ABI = ["function tokenURI(uint256 tokenId) view returns (string)"];
 
 type NftCardData = {
   id: string;
+  depositId?: string;
+  ownerWallet?: string;
   name: string;
   image: string;
   rarity: string;
@@ -53,6 +56,25 @@ export default function NFTExchangePage() {
   const [swapTarget, setSwapTarget] = useState<NftCardData | null>(null);
   const [swapLoading, setSwapLoading] = useState(false);
   const [withdrawLoadingId, setWithdrawLoadingId] = useState<string | null>(null);
+  const metadataCache = useRef<Map<string, string>>(new Map());
+
+  const mergedMarketListings = useMemo(() => {
+    const seen = new Set<string>();
+    const merged: NftCardData[] = [];
+    const placeholder = (id: string) => `https://picsum.photos/seed/deposit${id}/400/400`;
+    [...marketListings, ...listedNfts].forEach((n) => {
+      const key = String(n.id);
+      if (seen.has(key)) return;
+      seen.add(key);
+      merged.push({ ...n, image: n.image || placeholder(key) });
+    });
+    return merged;
+  }, [marketListings, listedNfts]);
+  const filteredMarketListings = useMemo(() => {
+    if (!detectedWallet) return mergedMarketListings;
+    const me = detectedWallet.toLowerCase();
+    return mergedMarketListings.filter((n) => !n.ownerWallet || n.ownerWallet.toLowerCase() !== me);
+  }, [mergedMarketListings, detectedWallet]);
 
   // Hydrate wallet state if user already connected MetaMask outside of this session
   useEffect(() => {
@@ -83,6 +105,79 @@ export default function NFTExchangePage() {
       mounted = false;
     };
   }, [verificationWallet, setVerificationWallet]);
+
+  const resolveProvider = () => {
+    try {
+      const cfg = getConfig();
+      return new ethers.JsonRpcProvider(cfg.RPC_URL);
+    } catch {
+      return new ethers.BrowserProvider((window as any).ethereum);
+    }
+  };
+
+  const toHttp = (uri: string) => uri.replace(/^ipfs:\/\//, "https://gateway.pinata.cloud/ipfs/");
+
+  const hydrateListingImages = async (deposits: NftCardData[]) => {
+    const provider = resolveProvider();
+    const updated: Record<string, string> = {};
+
+    await Promise.all(
+      deposits.map(async (d) => {
+        if (d.image && !d.image.includes("picsum.photos")) return;
+        const cacheKey = `${d.contract.toLowerCase()}-${d.tokenId}`;
+        const cached = metadataCache.current.get(cacheKey);
+        if (cached) {
+          updated[cacheKey] = cached;
+          return;
+        }
+        try {
+          const erc721 = new ethers.Contract(d.contract, ERC721_ABI, provider);
+          const tokenUri = await erc721.tokenURI(d.tokenId);
+          const url = toHttp(String(tokenUri));
+          const resp = await fetch(url);
+          if (!resp.ok) {
+            return;
+          }
+          const contentType = resp.headers.get("content-type") || "";
+          let imageUrl = "";
+          if (contentType.includes("application/json")) {
+            const meta = await resp.json();
+            if (meta?.image) {
+              imageUrl = toHttp(String(meta.image));
+            }
+          } else {
+            imageUrl = url;
+          }
+          if (imageUrl) {
+            metadataCache.current.set(cacheKey, imageUrl);
+            updated[cacheKey] = imageUrl;
+          }
+        } catch (err) {
+          console.warn("Failed to hydrate image for", d.contract, d.tokenId, err);
+        }
+      })
+    );
+
+    if (Object.keys(updated).length === 0) return;
+    setMarketListings((prev) =>
+      prev.map((item) => {
+        const key = `${item.contract.toLowerCase()}-${item.tokenId}`;
+        if (updated[key]) {
+          return { ...item, image: updated[key] };
+        }
+        return item;
+      })
+    );
+    setListedNfts((prev) =>
+      prev.map((item) => {
+        const key = `${item.contract.toLowerCase()}-${item.tokenId}`;
+        if (updated[key]) {
+          return { ...item, image: updated[key] };
+        }
+        return item;
+      })
+    );
+  };
 
   // Guard route by checking wallet + SBT ownership
   useEffect(() => {
@@ -178,6 +273,7 @@ export default function NFTExchangePage() {
 
   useEffect(() => {
     if (!accessGranted) return;
+    const placeholder = (id: string) => `https://picsum.photos/seed/deposit${id}/400/400`;
     const loadNfts = async () => {
       try {
         const wallet = detectedWallet;
@@ -185,6 +281,7 @@ export default function NFTExchangePage() {
         const tokens = await getRewardNFTs(wallet);
         const mapped: NftCardData[] = tokens.map((t) => ({
           id: String(t.tokenId),
+          ownerWallet: detectedWallet || undefined,
           name: `Reward NFT #${t.tokenId}`,
           image: t.imageUrl || "",
           rarity: "Reward",
@@ -208,19 +305,57 @@ export default function NFTExchangePage() {
       .then((resp) => {
         const mapped: NftCardData[] = resp.deposits.map((d) => ({
           id: d.id,
+          depositId: d.id,
           name: `Deposit #${d.id}`,
-          image: "",
+          image: placeholder(String(d.id)),
           rarity: "미정",
           tokenId: d.token_id,
           contract: d.nft_contract,
+          ownerWallet: d.owner_wallet,
           badge: d.status,
         }));
         setMarketListings(mapped);
+        hydrateListingImages(mapped);
+
+        // Populate my listed NFTs from deposits I own
+        const myAddr = detectedWallet?.toLowerCase();
+        if (myAddr) {
+          const mine = resp.deposits.filter((d) => d.owner_wallet?.toLowerCase() === myAddr);
+          const mineCards: NftCardData[] = mine.map((d) => ({
+            id: d.id,
+            depositId: d.id,
+            name: `Deposit #${d.id}`,
+            image:
+              availableNfts.find(
+                (n) => n.contract.toLowerCase() === d.nft_contract.toLowerCase() && n.tokenId === d.token_id
+              )?.image || placeholder(String(d.id)),
+            rarity: "미정",
+            tokenId: d.token_id,
+            contract: d.nft_contract,
+            ownerWallet: d.owner_wallet,
+            badge: d.status,
+          }));
+          setListedNfts(mineCards);
+          // Remove my listed tokens from available so they don't show twice
+          setAvailableNfts((prev) =>
+            prev.filter(
+              (n) =>
+                !mineCards.find(
+                  (m) => m.contract.toLowerCase() === n.contract.toLowerCase() && m.tokenId === n.tokenId
+                )
+            )
+          );
+        }
       })
       .catch((error) => {
         console.error("Failed to load deposits", error);
       });
-  }, [accessGranted]);
+  }, [accessGranted, detectedWallet]);
+
+  // Reset local listings when wallet changes so previous user's deposits don't stick around
+  useEffect(() => {
+    setListedNfts([]);
+  }, [detectedWallet]);
 
   const headerHint = useMemo(() => {
     return "내 NFT를 선택해 바로 마켓에 올리고, 아래에서 올린 목록을 관리하세요.";
@@ -229,21 +364,38 @@ export default function NFTExchangePage() {
   const handleListToMarket = async (nft: NftCardData) => {
     setListing(true);
     try {
-      if (!SIMPLE_ESCROW_ADDRESS) {
+      const escrowAddress =
+        SIMPLE_ESCROW_ADDRESS ||
+        (() => {
+          try {
+            return getConfig().SIMPLE_ESCROW_ADDRESS;
+          } catch {
+            return "";
+          }
+        })();
+      if (!escrowAddress) {
         throw new Error("SIMPLE_ESCROW_ADDRESS not loaded");
       }
       const provider = new ethers.BrowserProvider((window as any).ethereum);
       const signer = await provider.getSigner();
       const reward = new ethers.Contract(REWARD_NFT_ADDR, (RewardAbi as any).abi || RewardAbi, signer);
-      const isApproved = await reward.isApprovedForAll(await signer.getAddress(), SIMPLE_ESCROW_ADDRESS);
+      const isApproved = await reward.isApprovedForAll(await signer.getAddress(), escrowAddress);
       if (!isApproved) {
-        const approveTx = await reward.setApprovalForAll(SIMPLE_ESCROW_ADDRESS, true);
+        const approveTx = await reward.setApprovalForAll(escrowAddress, true);
         showToast({ title: "승인 중...", description: approveTx.hash });
         await approveTx.wait();
       }
-      await depositToEscrow(nft.contract, nft.tokenId);
+      const { depositId } = await depositToEscrow(nft.contract, nft.tokenId);
+      if (!depositId) {
+        throw new Error("Deposited but depositId not found in receipt");
+      }
       setAvailableNfts((prev) => prev.filter((n) => n.id !== nft.id));
-      setListedNfts((prev) => [...prev, { ...nft, badge: "LISTED" }]);
+      const depositIdStr = depositId.toString();
+      const ownerAddress = (await signer.getAddress()) || detectedWallet || undefined;
+      setListedNfts((prev) => [
+        ...prev,
+        { ...nft, id: depositIdStr, depositId: depositIdStr, ownerWallet: ownerAddress, badge: "LISTED" },
+      ]);
       showToast({ title: "마켓에 올렸습니다", description: `${nft.name}이(가) 교환 대기열에 추가됨` });
     } catch (error: any) {
       console.error("listing failed", error);
@@ -259,23 +411,59 @@ export default function NFTExchangePage() {
 
   const handleWithdraw = (nft: NftCardData) => {
     setListedNfts((prev) => prev.filter((n) => n.id !== nft.id));
-    setAvailableNfts((prev) => [...prev, { ...nft, badge: undefined }]);
+    setAvailableNfts((prev) => [
+      ...prev,
+      { ...nft, id: nft.tokenId, depositId: undefined, badge: undefined },
+    ]);
     showToast({ title: "마켓에서 내렸습니다", description: `${nft.name}이(가) 다시 내 보관함으로 이동` });
   };
 
   const refreshMarket = async () => {
     try {
+      const placeholder = (id: string) => `https://picsum.photos/seed/deposit${id}/400/400`;
       const resp = await getDeposits({ status: "ACTIVE", limit: 50 });
       const mapped: NftCardData[] = resp.deposits.map((d) => ({
         id: d.id,
+        depositId: d.id,
         name: `Deposit #${d.id}`,
-        image: "https://picsum.photos/seed/deposit" + d.id + "/400/400",
+        image: placeholder(String(d.id)),
         rarity: "미정",
         tokenId: d.token_id,
         contract: d.nft_contract,
+        ownerWallet: d.owner_wallet,
         badge: d.status,
       }));
       setMarketListings(mapped);
+      hydrateListingImages(mapped);
+
+      // Refresh my listings based on owner address
+      const myAddr = detectedWallet?.toLowerCase();
+      if (myAddr) {
+        const mine = resp.deposits.filter((d) => d.owner_wallet?.toLowerCase() === myAddr);
+        const mineCards: NftCardData[] = mine.map((d) => ({
+          id: d.id,
+          depositId: d.id,
+          name: `Deposit #${d.id}`,
+          image:
+            availableNfts.find(
+              (n) => n.contract.toLowerCase() === d.nft_contract.toLowerCase() && n.tokenId === d.token_id
+            )?.image || placeholder(String(d.id)),
+          rarity: "미정",
+          tokenId: d.token_id,
+          contract: d.nft_contract,
+          ownerWallet: d.owner_wallet,
+          badge: d.status,
+        }));
+        setListedNfts(mineCards);
+        setAvailableNfts((prev) =>
+          prev.filter(
+            (n) =>
+              !mineCards.find(
+                (m) => m.contract.toLowerCase() === n.contract.toLowerCase() && m.tokenId === n.tokenId
+              )
+          )
+        );
+      }
     } catch (error) {
       console.error("refresh market failed", error);
     }
@@ -284,7 +472,8 @@ export default function NFTExchangePage() {
   const handleWithdrawOnChain = async (nft: NftCardData) => {
     setWithdrawLoadingId(nft.id);
     try {
-      await withdrawFromEscrow(nft.id);
+      const targetDepositId = nft.depositId || nft.id;
+      await withdrawFromEscrow(targetDepositId);
       handleWithdraw(nft);
       await refreshMarket();
     } catch (error: any) {
@@ -423,12 +612,40 @@ export default function NFTExchangePage() {
               </div>
             </div>
             <NftGrid
-              nfts={[...marketListings, ...listedNfts]}
+              nfts={filteredMarketListings}
               emptyText="마켓에 올라온 NFT가 없습니다."
               actionLabel="스왑하기"
               actionIcon={<ArrowLeftRight size={16} />}
               onAction={(nft) => {
                 setSwapTarget(nft);
+              }}
+              renderAction={(nft) => {
+                const isMine =
+                  nft.ownerWallet && detectedWallet
+                    ? nft.ownerWallet.toLowerCase() === detectedWallet.toLowerCase()
+                    : false;
+                if (isMine) {
+                  return (
+                    <button
+                      className="nft-exchange-button nft-exchange-button--full"
+                      onClick={() => handleWithdrawOnChain(nft)}
+                      disabled={!!withdrawLoadingId}
+                    >
+                      <RotateCcw size={16} />
+                      <span>내리기</span>
+                    </button>
+                  );
+                }
+                return (
+                  <button
+                    className="nft-exchange-button nft-exchange-button--full"
+                    onClick={() => setSwapTarget(nft)}
+                    disabled={swapLoading}
+                  >
+                    <ArrowLeftRight size={16} />
+                    <span>스왑하기</span>
+                  </button>
+                );
               }}
               badge="LISTED"
               disabled={swapLoading}
@@ -466,6 +683,7 @@ function NftGrid({
   actionLabel,
   actionIcon,
   onAction,
+  renderAction,
   badge,
   disabled,
 }: {
@@ -474,6 +692,7 @@ function NftGrid({
   actionLabel: string;
   actionIcon: React.ReactNode;
   onAction: (nft: NftCardData) => void;
+  renderAction?: (nft: NftCardData) => React.ReactNode;
   badge?: string;
   disabled?: boolean;
 }) {
@@ -483,9 +702,9 @@ function NftGrid({
   return (
     <div className="nft-card-grid">
       {nfts.map((nft) => (
-        <article key={nft.id} className="nft-card">
+        <article key={`${nft.id}-${nft.contract}`} className="nft-card">
           <div className="nft-card__image">
-            <img src={nft.image} alt={nft.name} />
+            <img src={nft.image || undefined} alt={nft.name} />
             <span className="nft-chip">{nft.rarity}</span>
             {badge ? <span className="nft-chip nft-chip--secondary">{badge}</span> : null}
           </div>
@@ -494,14 +713,18 @@ function NftGrid({
             <p className="nft-card__meta">
               Token #{nft.tokenId} · <span className="mono">{nft.contract}</span>
             </p>
-            <button
-              className="nft-exchange-button nft-exchange-button--full"
-              onClick={() => onAction(nft)}
-              disabled={disabled}
-            >
-              {actionIcon}
-              <span>{actionLabel}</span>
-            </button>
+            {renderAction ? (
+              renderAction(nft)
+            ) : (
+              <button
+                className="nft-exchange-button nft-exchange-button--full"
+                onClick={() => onAction(nft)}
+                disabled={disabled}
+              >
+                {actionIcon}
+                <span>{actionLabel}</span>
+              </button>
+            )}
           </div>
         </article>
       ))}

@@ -19,7 +19,25 @@ function getEscrowContract(signerOrProvider: ethers.Provider | ethers.Signer) {
 export async function depositToEscrow(nftAddress: string, tokenId: string | number | bigint) {
   const signer = await getSigner();
   const contract = getEscrowContract(signer);
-  return contract.deposit(nftAddress, tokenId);
+  const tx = await contract.deposit(nftAddress, tokenId);
+  const receipt = await tx.wait();
+
+  let depositId: bigint | null = null;
+  const targetAddress = String(contract.target).toLowerCase();
+  for (const log of receipt.logs) {
+    if (String(log.address).toLowerCase() !== targetAddress) continue;
+    try {
+      const parsed = contract.interface.parseLog(log);
+      if (parsed?.name === "Deposited") {
+        depositId = parsed.args.depositId as bigint;
+        break;
+      }
+    } catch {
+      /* ignore non-escrow logs */
+    }
+  }
+
+  return { tx, receipt, depositId };
 }
 
 export async function swapOnEscrow(targetDepositId: string | number | bigint, nftAddress: string, tokenId: string | number | bigint) {
