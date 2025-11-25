@@ -145,6 +145,27 @@
   padding: 40px 24px 80px;
 }
 
+.tab-toggle-group {
+  display: inline-flex;
+  border: 1px solid #1f2937;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.tab-toggle {
+  padding: 10px 16px;
+  background: transparent;
+  color: #e5e7eb;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.tab-toggle--active {
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+}
+
 .nft-exchange-tabs {
   display: flex;
   flex-wrap: wrap;

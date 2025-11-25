@@ -36,6 +36,8 @@ export default function NFTExchangePage() {
   const [availableNfts, setAvailableNfts] = useState<NftCardData[]>([]);
   const [listedNfts, setListedNfts] = useState<NftCardData[]>([]);
   const [listing, setListing] = useState(false);
+  const [activeTab, setActiveTab] = useState<"mine" | "market">("mine");
+  const [marketListings, setMarketListings] = useState<NftCardData[]>([]);
 
   // Hydrate wallet state if user already connected MetaMask outside of this session
   useEffect(() => {
@@ -197,6 +199,26 @@ export default function NFTExchangePage() {
       },
     ];
     setAvailableNfts(mock);
+    setMarketListings([
+      {
+        id: "101",
+        name: "Community Badge #101",
+        image: "https://picsum.photos/seed/market1/400/400",
+        rarity: "에픽",
+        tokenId: "101",
+        contract: "0xdef...456",
+        badge: "LISTED",
+      },
+      {
+        id: "102",
+        name: "Community Badge #102",
+        image: "https://picsum.photos/seed/market2/400/400",
+        rarity: "레어",
+        tokenId: "102",
+        contract: "0xdef...456",
+        badge: "LISTED",
+      },
+    ]);
   }, [accessGranted]);
 
   const headerHint = useMemo(() => {
@@ -272,43 +294,80 @@ export default function NFTExchangePage() {
       </header>
 
       <main className="nft-exchange-content">
-        <section className="exchange-columns">
-          <div className="exchange-column">
-            <div className="exchange-column__header">
-              <div>
-                <p className="nft-subtitle">내 NFT</p>
-                <h2>보유한 NFT 목록</h2>
-                <p className="nft-hint">사진 카드에서 선택해 “마켓에 올리기”를 누르면 아래 마켓 섹션으로 이동합니다.</p>
-              </div>
-            </div>
-            <NftGrid
-              nfts={availableNfts}
-              emptyText="지갑에 표시할 NFT가 없습니다."
-              actionLabel={listing ? "처리 중..." : "마켓에 올리기"}
-              actionIcon={<Upload size={16} />}
-              onAction={handleListToMarket}
-              disabled={listing}
-            />
-          </div>
+        <div className="tab-toggle-group">
+          <button
+            className={`tab-toggle ${activeTab === "mine" ? "tab-toggle--active" : ""}`}
+            onClick={() => setActiveTab("mine")}
+          >
+            내 NFT 올리기
+          </button>
+          <button
+            className={`tab-toggle ${activeTab === "market" ? "tab-toggle--active" : ""}`}
+            onClick={() => setActiveTab("market")}
+          >
+            마켓 전체 보기
+          </button>
+        </div>
 
-          <div className="exchange-column">
+        {activeTab === "mine" ? (
+          <section className="exchange-columns">
+            <div className="exchange-column">
+              <div className="exchange-column__header">
+                <div>
+                  <p className="nft-subtitle">내 NFT</p>
+                  <h2>보유한 NFT 목록</h2>
+                  <p className="nft-hint">사진 카드에서 선택해 “마켓에 올리기”를 누르면 아래 마켓 섹션으로 이동합니다.</p>
+                </div>
+              </div>
+              <NftGrid
+                nfts={availableNfts}
+                emptyText="지갑에 표시할 NFT가 없습니다."
+                actionLabel={listing ? "처리 중..." : "마켓에 올리기"}
+                actionIcon={<Upload size={16} />}
+                onAction={handleListToMarket}
+                disabled={listing}
+              />
+            </div>
+
+            <div className="exchange-column">
+              <div className="exchange-column__header">
+                <div>
+                  <p className="nft-subtitle">마켓 대기열</p>
+                  <h2>마켓에 올라간 NFT</h2>
+                  <p className="nft-hint">이 섹션의 카드는 이미 예치(escrow)된 것으로 가정합니다.</p>
+                </div>
+              </div>
+              <NftGrid
+                nfts={listedNfts}
+                emptyText="마켓에 올린 NFT가 없습니다."
+                actionLabel="내리기"
+                actionIcon={<RotateCcw size={16} />}
+                onAction={handleWithdraw}
+                badge="LISTED"
+              />
+            </div>
+          </section>
+        ) : (
+          <section className="exchange-column">
             <div className="exchange-column__header">
               <div>
-                <p className="nft-subtitle">마켓 대기열</p>
-                <h2>마켓에 올라간 NFT</h2>
-                <p className="nft-hint">이 섹션의 카드는 이미 예치(escrow)된 것으로 가정합니다.</p>
+                <p className="nft-subtitle">마켓</p>
+                <h2>전체 마켓 NFT</h2>
+                <p className="nft-hint">모든 예치된 NFT를 한눈에. 실제 데이터 연동 시 인덱서/이벤트를 사용하세요.</p>
               </div>
             </div>
             <NftGrid
-              nfts={listedNfts}
-              emptyText="마켓에 올린 NFT가 없습니다."
-              actionLabel="내리기"
-              actionIcon={<RotateCcw size={16} />}
-              onAction={handleWithdraw}
+              nfts={[...marketListings, ...listedNfts]}
+              emptyText="마켓에 올라온 NFT가 없습니다."
+              actionLabel="상세 보기"
+              actionIcon={<ArrowLeftRight size={16} />}
+              onAction={() => {
+                showToast({ title: "준비중", description: "상세 보기/스왑 흐름은 후속 단계에서 구현됩니다." });
+              }}
               badge="LISTED"
             />
-          </div>
-        </section>
+          </section>
+        )}
       </main>
     </div>
   );
