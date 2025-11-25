@@ -421,18 +421,6 @@ function EscrowQuickPanel() {
   const [swapModalOpen, setSwapModalOpen] = useState(false);
   const [swapModalTarget, setSwapModalTarget] = useState<string | null>(null);
 
-  const refreshDeposits = async (ids: string[]) => {
-    const signer = await (async () => {
-      try {
-        return await getSigner();
-      } catch {
-        return null;
-      }
-    })();
-    const provider = signer ?? null;
-    if (!provider) return;
-  };
-
   const refreshDeposit = async (id: string) => {
     try {
       const res = await getDeposit(id);
