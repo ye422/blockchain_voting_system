@@ -50,8 +50,10 @@ describe("SimpleNFTEscrow", function () {
 
     await collectionA.connect(owner).approve(escrow.getAddress(), tokenAId);
     const depositTx = await escrow.connect(owner).deposit(await collectionA.getAddress(), tokenAId);
-    const targetDeposit = (await depositTx.wait()).logs.find((l) => l.fragment && l.fragment.name === "Deposited");
-    const targetId = targetDeposit.args.depositId;
+    const targetDepositEvent = (await depositTx.wait()).logs.find(
+      (l) => l.fragment && l.fragment.name === "Deposited"
+    );
+    const targetId = targetDepositEvent.args.depositId;
 
     await collectionB.connect(taker).approve(escrow.getAddress(), tokenBId);
     const swapTx = await escrow
@@ -66,8 +68,8 @@ describe("SimpleNFTEscrow", function () {
     expect(await collectionA.ownerOf(tokenAId)).to.equal(taker.address);
     expect(await collectionB.ownerOf(tokenBId)).to.equal(owner.address);
 
-    const targetDeposit = await escrow.deposits(targetId);
-    expect(targetDeposit.active).to.equal(false);
+    const storedTarget = await escrow.deposits(targetId);
+    expect(storedTarget.active).to.equal(false);
   });
 
   it("reverts withdraw from non-owner", async function () {
@@ -88,7 +90,8 @@ describe("SimpleNFTEscrow", function () {
 
     await collectionA.connect(owner).approve(escrow.getAddress(), tokenAId);
     const depositTx = await escrow.connect(owner).deposit(await collectionA.getAddress(), tokenAId);
-    const targetId = (await depositTx.wait()).logs[0].args.depositId;
+    const targetId = (await depositTx.wait()).logs.find((l) => l.fragment && l.fragment.name === "Deposited").args
+      .depositId;
     await escrow.connect(owner).withdraw(targetId);
 
     await collectionB.connect(taker).approve(escrow.getAddress(), tokenBId);
