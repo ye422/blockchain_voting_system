@@ -221,14 +221,26 @@ if [ $? -eq 0 ]; then
 }
 EOF
         echo "✅ config.json 업데이트 완료"
-        # 인덱서 env 파일 작성
+        # 인덱서 env 파일 작성 (기존 값 우선 유지)
         INDEXER_ENV_FILE="../scripts/indexer.env"
+        read_env_var() {
+            local file="$1"; local key="$2"; local fallback="$3"
+            if [ -f "$file" ] && grep -q "^${key}=" "$file"; then
+                grep "^${key}=" "$file" | head -n1 | cut -d '=' -f2-
+            else
+                echo "$fallback"
+            fi
+        }
+        EXISTING_SUPABASE_URL=$(read_env_var "$INDEXER_ENV_FILE" "SUPABASE_URL" "${SUPABASE_URL:-<supabase-url>}")
+        EXISTING_SUPABASE_KEY=$(read_env_var "$INDEXER_ENV_FILE" "SUPABASE_SERVICE_KEY" "${SUPABASE_SERVICE_KEY:-<supabase-service-key>}")
+        EXISTING_RPC_URL=$(read_env_var "$INDEXER_ENV_FILE" "RPC_URL" "http://localhost:9545")
+
         cat > "$INDEXER_ENV_FILE" <<EOF
 # Escrow indexer environment
-RPC_URL=http://localhost:9545
+RPC_URL=${EXISTING_RPC_URL}
 SIMPLE_ESCROW_ADDRESS=${ESCROW:-<escrow-address>}
-SUPABASE_URL=${SUPABASE_URL:-<supabase-url>}
-SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY:-<supabase-service-key>}
+SUPABASE_URL=${EXISTING_SUPABASE_URL}
+SUPABASE_SERVICE_KEY=${EXISTING_SUPABASE_KEY}
 # Optional: START_BLOCK=0
 EOF
         echo "✅ indexer.env 업데이트 완료"

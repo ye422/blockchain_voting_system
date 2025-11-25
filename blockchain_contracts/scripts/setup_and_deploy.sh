@@ -480,14 +480,26 @@ fi
 sync_frontend_env_files "${CITIZEN_SBT_ADDRESS}" "${VOTING_ADDRESS}" "${REWARD_NFT_ADDRESS}" "${VERIFIER_ADDRESS}" "${SIMPLE_ESCROW_ADDRESS}"
 update_frontend_config_json "${CITIZEN_SBT_ADDRESS}" "${VOTING_ADDRESS}" "${REWARD_NFT_ADDRESS}" "${VERIFIER_ADDRESS}" "${SIMPLE_ESCROW_ADDRESS}"
 
-# Write indexer env template to scripts/indexer.env for Docker/pm2 usage
+# Write/refresh indexer env file (preserve existing values if present)
 INDEXER_ENV_FILE="${PROJECT_ROOT}/scripts/indexer.env"
+read_env_var() {
+  local file="$1"; local key="$2"; local fallback="$3"
+  if [[ -f "$file" ]] && grep -q "^${key}=" "$file"; then
+    grep "^${key}=" "$file" | head -n1 | cut -d '=' -f2-
+  else
+    echo "$fallback"
+  fi
+}
+EXISTING_SUPABASE_URL=$(read_env_var "$INDEXER_ENV_FILE" "SUPABASE_URL" "${SUPABASE_URL:-<supabase-url>}")
+EXISTING_SUPABASE_KEY=$(read_env_var "$INDEXER_ENV_FILE" "SUPABASE_SERVICE_KEY" "${SUPABASE_SERVICE_KEY:-<supabase-service-key>}")
+EXISTING_RPC_URL=$(read_env_var "$INDEXER_ENV_FILE" "RPC_URL" "${EFFECTIVE_RPC_ENDPOINT}")
+
 cat > "${INDEXER_ENV_FILE}" <<EOF
 # Escrow indexer environment
-RPC_URL=${EFFECTIVE_RPC_ENDPOINT}
+RPC_URL=${EXISTING_RPC_URL}
 SIMPLE_ESCROW_ADDRESS=${SIMPLE_ESCROW_ADDRESS}
-SUPABASE_URL=${SUPABASE_URL:-<supabase-url>}
-SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY:-<supabase-service-key>}
+SUPABASE_URL=${EXISTING_SUPABASE_URL}
+SUPABASE_SERVICE_KEY=${EXISTING_SUPABASE_KEY}
 # Optional: START_BLOCK=0
 EOF
 echo -e "${GREEN}✓ Wrote indexer env to ${INDEXER_ENV_FILE}${NC}"
