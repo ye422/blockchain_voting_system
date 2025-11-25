@@ -165,44 +165,10 @@ export default function NFTExchangePage() {
     };
   }, [accessGranted, userSummary, isUserSummaryLoading, setUserSummary, setUserSummaryLoading, listedNfts.length]);
 
-  // Mock/load user NFTs (placeholder images)
+  // Placeholder for wallet NFTs — replace with real wallet fetch
   useEffect(() => {
     if (!accessGranted) return;
-    // TODO: replace with actual wallet NFT fetch
-    setAvailableNfts([
-      {
-        id: "1",
-        name: "Civic Badge #1",
-        image: "https://picsum.photos/seed/civic1/400/400",
-        rarity: "레전더리",
-        tokenId: "1",
-        contract: "0xabc...123",
-      },
-      {
-        id: "2",
-        name: "Civic Badge #2",
-        image: "https://picsum.photos/seed/civic2/400/400",
-        rarity: "에픽",
-        tokenId: "2",
-        contract: "0xabc...123",
-      },
-      {
-        id: "3",
-        name: "Civic Badge #3",
-        image: "https://picsum.photos/seed/civic3/400/400",
-        rarity: "레어",
-        tokenId: "3",
-        contract: "0xabc...123",
-      },
-      {
-        id: "4",
-        name: "Civic Badge #4",
-        image: "https://picsum.photos/seed/civic4/400/400",
-        rarity: "커먼",
-        tokenId: "4",
-        contract: "0xabc...123",
-      },
-    ]);
+    setAvailableNfts([]);
 
     // Pull market listings from API (deposits)
     getDeposits({ status: "ACTIVE", limit: 50 })
@@ -210,7 +176,7 @@ export default function NFTExchangePage() {
         const mapped: NftCardData[] = resp.deposits.map((d) => ({
           id: d.id,
           name: `Deposit #${d.id}`,
-          image: "https://picsum.photos/seed/deposit" + d.id + "/400/400",
+          image: "",
           rarity: "미정",
           tokenId: d.token_id,
           contract: d.nft_contract,
@@ -230,7 +196,6 @@ export default function NFTExchangePage() {
   const handleListToMarket = async (nft: NftCardData) => {
     setListing(true);
     try {
-      // In a real flow, call depositToEscrow. Here we just simulate success.
       await depositToEscrow(nft.contract, nft.tokenId);
       setAvailableNfts((prev) => prev.filter((n) => n.id !== nft.id));
       setListedNfts((prev) => [...prev, { ...nft, badge: "LISTED" }]);
