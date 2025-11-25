@@ -671,6 +671,46 @@ function KnownDepositsSection({
 }) {
   const { showToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [autoError, setAutoError] = useState<string | null>(null);
+
+  // Auto-refresh known deposits every 20s (on-chain fallback)
+  useEffect(() => {
+    if (deposits.length === 0) return;
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const results: DepositRow[] = [];
+        for (const d of deposits) {
+          const res = await getDeposit(d.id);
+          results.push({
+            id: d.id,
+            owner: res.owner,
+            nft: res.nft,
+            tokenId: res.tokenId.toString(),
+            active: res.active,
+          });
+        }
+        if (!cancelled) {
+          setDeposits(
+            results.sort((a, b) => Number(a.id) - Number(b.id))
+          );
+          setAutoError(null);
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          const message = error?.shortMessage || error?.message || "Auto-refresh failed";
+          setAutoError(message);
+        }
+      }
+    };
+
+    const interval = window.setInterval(refresh, 20000);
+    refresh();
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [deposits, setDeposits]);
 
   const fetchDeposits = async (ids: string[]) => {
     setIsLoading(true);
@@ -727,6 +767,7 @@ function KnownDepositsSection({
           <p className="escrow-quick-panel__note">
             Enter deposit IDs to view status. Swap uses the quick panel above (sets target automatically).
           </p>
+          {autoError ? <p className="known-deposits__error">Auto-refresh error: {autoError}</p> : null}
         </div>
         <div className="known-deposits__controls">
           <input
