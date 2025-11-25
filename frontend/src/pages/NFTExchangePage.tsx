@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowLeftRight, Loader2, Upload, RotateCcw, ArrowRight } from "lucide-react";
+import { ArrowLeftRight, Loader2, Upload, RotateCcw, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import useEmailVerificationStore from "../stores/emailVerificationStore";
 import useNFTTradingStore from "../stores/nftTradingStore";
@@ -334,18 +334,13 @@ export default function NFTExchangePage() {
     <div className="nft-exchange-page">
       <header className="nft-exchange-header">
         <div className="nft-exchange-header-content">
-          <button type="button" className="breadcrumb-button" onClick={() => navigate("/email-verification")}
-            aria-label="이메일 인증으로 돌아가기">
-            <ArrowLeft size={16} />
-            <span>이메일 인증</span>
-          </button>
           <div className="nft-exchange-title">
             <div className="nft-exchange-icon">
               <ArrowLeftRight size={20} />
             </div>
             <div>
-              <p className="nft-subtitle">Escrow 기반 거래</p>
-              <h1>내 NFT를 마켓에 올리기</h1>
+              <p className="nft-subtitle">NFT 거래소</p>
+              <h1>NFT 거래소</h1>
               <p className="nft-hint">{headerHint}</p>
             </div>
           </div>
@@ -361,7 +356,6 @@ export default function NFTExchangePage() {
             </button>
           </div>
         </div>
-        <UserSummaryCard userSummary={userSummary} isLoading={isUserSummaryLoading} />
       </header>
 
       <main className="nft-exchange-content">
@@ -464,33 +458,6 @@ function AccessLoadingState() {
       </div>
     </div>
   );
-}
-
-function UserSummaryCard({ userSummary, isLoading }: { userSummary: UserSummary | null; isLoading: boolean }) {
-  return (
-    <div className="nft-user-summary">
-      <div className="nft-user-summary-row">
-        <SummaryStat label="등록한 NFT" value={isLoading ? "-" : userSummary?.totalListings ?? 0} />
-        <SummaryStat label="받은 제안" value={isLoading ? "-" : userSummary?.pendingProposals ?? 0} />
-        <SummaryStat label="최근 동기화" value={isLoading ? "동기화 중" : formatTimestamp(userSummary?.lastSyncedAt)} />
-      </div>
-    </div>
-  );
-}
-
-function SummaryStat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="summary-stat">
-      <p>{label}</p>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
-function formatTimestamp(ts?: string | null) {
-  if (!ts) return "-";
-  const date = new Date(ts);
-  return date.toLocaleString();
 }
 
 function NftGrid({
