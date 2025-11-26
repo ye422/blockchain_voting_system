@@ -207,41 +207,149 @@ export async function getRewardNFTs(
             return [];
         }
 
+        const toHttp = (uri: string) => uri.replace(/^ipfs:\/\//, "https://gateway.pinata.cloud/ipfs/");
+
         const nfts = await Promise.all(
             (tokenIds as string[]).map(async (tokenId) => {
                 const ballotId = await contract.methods.getBallotId(tokenId).call();
                 const voteRecord = await contract.methods.getVoteRecord(tokenId).call();
 
-                // Get tokenURI (base URL without tokenId)
                 let imageUrl = "";
-                let metadata = null;
+                let metadata: any = null;
+
+                // Helper to try multiple gateways
+                const fetchWithFallback = async (cidOrUri: string) => {
+                    // Extract CID if it's a full URL
+                    let cid = cidOrUri;
+                    if (cidOrUri.includes('/ipfs/')) {
+                        cid = cidOrUri.split('/ipfs/')[1];
+                    } else if (cidOrUri.startsWith('ipfs://')) {
+                        cid = cidOrUri.replace('ipfs://', '');
+                    }
+
+                    // Remove any query parameters
+                    cid = cid.split('?')[0];
+
+                    const gateways = [
+                        `https://gateway.pinata.cloud/ipfs/${cid}`,
+                        `https://ipfs.io/ipfs/${cid}`,
+                        `https://dweb.link/ipfs/${cid}`
+                    ];
+
+                    for (const url of gateways) {
+                        try {
+                            const resp = await fetch(url);
+                            if (resp.ok) {
+                                return resp;
+                            }
+                        } catch (e) {
+                            console.warn(`Gateway failed: ${url}`, e);
+                        }
+                    }
+                    throw new Error('All gateways failed');
+                };
 
                 try {
                     const tokenURI = await contract.methods.tokenURI(tokenId).call();
-
-                    // tokenURI returns base_url/tokenId format (e.g., ipfs://QmXyz.../0)
-                    // We need to remove the /tokenId part and use the base image
-                    let uri = String(tokenURI);
-
-                    // Remove the trailing /tokenId (e.g., /0, /1, /2)
-                    const lastSlashIndex = uri.lastIndexOf('/');
-                    if (lastSlashIndex !== -1 && /^\d+$/.test(uri.substring(lastSlashIndex + 1))) {
-                        uri = uri.substring(0, lastSlashIndex);
+                    const uri = String(tokenURI);
+                    
+                    try {
+                        const resp = await fetchWithFallback(uri);
+                        
+                        // Try parsing as JSON first
+                        try {
+                            const jsonText = await resp.text();
+                            try {
+                                metadata = JSON.parse(jsonText);
+                                // It's a valid JSON, extract image
+                                const rawImage: string | undefined = metadata?.image;
+                                if (rawImage) {
+                                    // Use the same fallback logic for the image
+                                    // But we can't await here easily inside the map, so just use a reliable gateway
+                                    // or keep the ipfs:// prefix and let the UI handle it?
+                                    // Better to convert to a http url using a reliable gateway
+                                    let imgCid = rawImage;
+                                    if (rawImage.includes('ipfs://')) {
+                                        imgCid = rawImage.replace('ipfs://', '');
+                                    } else if (rawImage.includes('/ipfs/')) {
+                                        imgCid = rawImage.split('/ipfs/')[1];
+                                    }
+                                    imageUrl = `https://ipfs.io/ipfs/${imgCid}`;
+                                }
+                            } catch {
+                                // Not a JSON, assume the URI itself is the image
+                                if (!jsonText.includes("<!DOCTYPE html>") && !jsonText.includes("<html")) {
+                                     // If tokenURI was direct image link, use it (or convert to ipfs.io)
+                                     let cid = uri;
+                                     if (uri.includes('/ipfs/')) cid = uri.split('/ipfs/')[1];
+                                     imageUrl = `https://ipfs.io/ipfs/${cid}`;
+                                }
+                            }
+                        } catch (parseError) {
+                            console.warn(`Failed to parse response for token ${tokenId}`, parseError);
+                            imageUrl = uri;
+                        }
+                    } catch (fetchError) {
+                        console.warn(`Failed to fetch metadata for token ${tokenId}:`, fetchError);
+                        imageUrl = ""; 
                     }
-
-                    // Convert ipfs:// to https gateway
-                    imageUrl = uri.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
-
-                    console.log(`Token ${tokenId} image URL:`, imageUrl);
                 } catch (uriError) {
-                    console.warn(`Failed to get tokenURI for token ${tokenId}:`, uriError);
+                    console.warn(`Failed to load tokenURI for token ${tokenId}:`, uriError);
                     imageUrl = "";
-                } return {
+                }
+
+                // Debug: Log the voteRecord structure
+                console.log(`Token ${tokenId} voteRecord:`, voteRecord);
+
+                let timestamp = (voteRecord as any).timestamp;
+                
+                // Fallback for array-like return (tuple)
+                if (timestamp === undefined && Array.isArray(voteRecord)) {
+                    timestamp = voteRecord[1];
+                }
+
+                // Handle BigInt if returned by newer Web3/Ethers versions
+                if (typeof timestamp === 'bigint') {
+                    timestamp = Number(timestamp);
+                }
+                
+                let mintedAt;
+                try {
+                    let ts = Number(timestamp);
+                    
+                    if (!isNaN(ts) && ts > 0) {
+                        // Adaptive scaling to milliseconds
+                        // If > 1e16, assume nanoseconds (divide by 1,000,000)
+                        if (ts > 10000000000000000) {
+                            ts = ts / 1000000;
+                        } 
+                        // If > 1e13, assume microseconds (divide by 1,000)
+                        else if (ts > 10000000000000) {
+                            ts = ts / 1000;
+                        }
+                        // If < 1e11, assume seconds (multiply by 1,000)
+                        else if (ts < 100000000000) {
+                            ts = ts * 1000;
+                        }
+                        // Otherwise assume milliseconds (do nothing)
+
+                        mintedAt = new Date(ts).toISOString();
+                    } else {
+                        console.warn(`Invalid timestamp value: ${timestamp} for token ${tokenId}`);
+                        mintedAt = new Date().toISOString();
+                    }
+                } catch (e) {
+                    console.warn(`Error parsing timestamp for token ${tokenId}:`, e);
+                    mintedAt = new Date().toISOString();
+                }
+
+                return {
                     tokenId: tokenId,
                     ballotId: String(ballotId),
                     proposalId: (voteRecord as any).proposalId.toString(),
-                    imageUrl: imageUrl,
-                    metadata: metadata,
+                    imageUrl,
+                    metadata,
+                    mintedAt,
                 };
             })
         );

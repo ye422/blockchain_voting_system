@@ -101,11 +101,11 @@ const buildEnvFallbackCandidates = (): CandidateRecord[] => {
   const pledgeGroups =
     rawPledges.length > 0
       ? rawPledges.split(";").map((group) =>
-          group
-            .split("|")
-            .map((pledge) => pledge.trim())
-            .filter(Boolean)
-        )
+        group
+          .split("|")
+          .map((pledge) => pledge.trim())
+          .filter(Boolean)
+      )
       : [];
 
   return names.map((name, index) => {
@@ -141,6 +141,7 @@ const FALLBACK_CANDIDATES: CandidateRecord[] = (() => {
 
 type BallotMeta = {
   id: string;
+  contractAddress: string;
   title: string;
   description: string;
   opensAt: string;
@@ -162,10 +163,17 @@ type NormalizedReceipt = {
 };
 
 type StoredVotePayload = {
-  version: number;
   candidateId: number;
   candidateName: string;
   receipt: NormalizedReceipt;
+  ballotId?: string;
+  ballotTitle?: string;
+  ballotContract?: string;
+};
+
+type StoredVoteMap = {
+  version: number;
+  ballots: Record<string, StoredVotePayload>;
 };
 
 type BlockDetails = {
@@ -185,8 +193,8 @@ type BlockPreview = {
   isVoteBlock: boolean;
 };
 
-const LAST_VOTE_STORAGE_KEY = "agora:lastVote:v1";
-const LAST_VOTE_STORAGE_VERSION = 1;
+const LAST_VOTE_STORAGE_KEY = "agora:lastVote:v2";
+const LAST_VOTE_STORAGE_VERSION = 2;
 const OPTIMISTIC_REFRESH_DELAY_MS = 2500;
 const RECENT_BLOCK_COUNT = 4;
 const BLOCK_POLL_INTERVAL_MS = 15000;
@@ -228,9 +236,39 @@ const FALLBACK_CHAIN_PREVIEW: BlockPreview[] = [
 ];
 const DEMO_ADDRESS_BASE = "abc000000000000000000000000000000000000";
 
+function normalizeContractAddresses(raw: string[] | string | undefined, fallback?: string): string[] {
+  const addresses: string[] = [];
+  if (Array.isArray(raw)) {
+    addresses.push(...raw);
+  } else if (typeof raw === "string") {
+    addresses.push(
+      ...raw
+        .split(",")
+        .map((address) => address.trim())
+        .filter(Boolean)
+    );
+  }
+
+  if (fallback) {
+    addresses.push(fallback);
+  }
+
+  // Deduplicate while preserving order (case-insensitive)
+  const deduped = new Map<string, string>();
+  addresses.forEach((address) => {
+    if (!address) return;
+    const key = address.toLowerCase();
+    if (!deduped.has(key)) {
+      deduped.set(key, address);
+    }
+  });
+  return Array.from(deduped.values());
+}
+
 const FALLBACK_BALLOTS: BallotMeta[] = [
   {
     id: "citizen-2025",
+    contractAddress: "0x0000000000000000000000000000000000000000",
     title: "제 25대 대통령 선거",
     description:
       "대한민국 제 25대 대통령을 선출하는 공식 선거입니다.",
@@ -242,6 +280,7 @@ const FALLBACK_BALLOTS: BallotMeta[] = [
   },
   {
     id: "charter-amend-2025",
+    contractAddress: "0x0000000000000000000000000000000000000000",
     title: "서강대학교 총 학생회장 선거",
     description:
       "서강대학교 총 학생회장을 선출하는 선거입니다.",
@@ -253,6 +292,7 @@ const FALLBACK_BALLOTS: BallotMeta[] = [
   },
   {
     id: "governance-review-2024",
+    contractAddress: "0x0000000000000000000000000000000000000000",
     title: "제 17대 국회의원 선거",
     description:
       "대한민국 제 17대 국회의원을 선출하는 공식 선거입니다.",
@@ -267,13 +307,13 @@ const FALLBACK_BALLOTS: BallotMeta[] = [
 export function VotingApp() {
   const navigate = useNavigate();
   const resetVerificationFlow = useEmailVerificationStore((state) => state.reset);
-  const storedVoteSnapshot = useMemo(() => readLastVoteSnapshot(), []);
   const [candidates, setCandidates] = useState<CandidateRecord[]>([]);
   const [status, setStatus] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [demoMode, setDemoMode] = useState<boolean>(false);
   const [ballots, setBallots] = useState<BallotMeta[]>(FALLBACK_BALLOTS);
   const [activeBallot, setActiveBallot] = useState<BallotMeta>(FALLBACK_BALLOTS[0]);
+  const [currentAccount, setCurrentAccount] = useState<string | null>(null);
   const [timeToClose, setTimeToClose] = useState<string>("");
   const [timeToAnnounce, setTimeToAnnounce] = useState<string>("");
   const [currentUser, setCurrentUser] = useState<string>("익명 유권자");
@@ -281,19 +321,11 @@ export function VotingApp() {
     FALLBACK_BALLOTS[0].turnout ?? 0
   );
   const [totalVotes, setTotalVotes] = useState<number>(0);
-  const [userHasVoted, setUserHasVoted] = useState<boolean>(
-    () => Boolean(storedVoteSnapshot)
-  );
+  const [userHasVoted, setUserHasVoted] = useState<boolean>(false);
   const [pledgeModal, setPledgeModal] = useState<CandidateRecord | null>(null);
-  const [lastReceipt, setLastReceipt] = useState<NormalizedReceipt | null>(
-    storedVoteSnapshot?.receipt ?? null
-  );
-  const [lastCandidateId, setLastCandidateId] = useState<number | null>(
-    storedVoteSnapshot?.candidateId ?? null
-  );
-  const [lastCandidateName, setLastCandidateName] = useState<string | null>(
-    storedVoteSnapshot?.candidateName ?? null
-  );
+  const [lastReceipt, setLastReceipt] = useState<NormalizedReceipt | null>(null);
+  const [lastCandidateId, setLastCandidateId] = useState<number | null>(null);
+  const [lastCandidateName, setLastCandidateName] = useState<string | null>(null);
   const [receiptModalOpen, setReceiptModalOpen] = useState<boolean>(false);
   const [blockDetails, setBlockDetails] = useState<BlockDetails | null>(null);
   const [blockLoading, setBlockLoading] = useState<boolean>(false);
@@ -307,6 +339,11 @@ export function VotingApp() {
   const [blockFeedLoading, setBlockFeedLoading] = useState<boolean>(false);
   const [blockPollingActive, setBlockPollingActive] = useState<boolean>(true);
   const [rpcUnavailable, setRpcUnavailable] = useState<boolean>(false);
+  const [helpModalOpen, setHelpModalOpen] = useState<boolean>(false);
+  const ballotStorageKey = useMemo(
+    () => buildBallotKeyForStorage(activeBallot),
+    [activeBallot]
+  );
   const modalRef = useRef<HTMLDivElement | null>(null);
   const expectedChainLabel = useMemo(() => getExpectedChainLabel(), []);
   const activeStatus = deriveBallotStatus(activeBallot);
@@ -314,6 +351,7 @@ export function VotingApp() {
   const countingInProgress = activeStatus === "개표 중";  // 투표 마감 후 결과 발표 전
   const revealResults = resultsVisible || demoMode;
   const walletConnected = currentUser !== "익명 유권자";
+  const normalizedAccount = currentAccount?.toLowerCase() ?? null;
 
   const metaMap = useMemo(
     () =>
@@ -359,6 +397,43 @@ export function VotingApp() {
   const closeReceiptModal = useCallback(() => {
     setReceiptModalOpen(false);
   }, []);
+
+  const refreshAccountState = useCallback(async (): Promise<string | null> => {
+    try {
+      const ethereum = (window as any).ethereum;
+      if (ethereum?.request) {
+        await ethereum.request({ method: "eth_requestAccounts" });
+      }
+      const web3Instance = getWeb3();
+      const accounts = await web3Instance.eth.getAccounts();
+      const primaryAccount = accounts[0] ?? null;
+      if (!primaryAccount) {
+        return null;
+      }
+
+      // If account changed, reset local vote snapshot and re-check chain state
+      if (primaryAccount.toLowerCase() !== normalizedAccount) {
+        setCurrentAccount(primaryAccount);
+        setCurrentUser(shortenAddress(primaryAccount));
+        setLastReceipt(null);
+        setLastCandidateId(null);
+        setLastCandidateName(null);
+        setUserHasVoted(false);
+        try {
+          const already = activeBallot?.contractAddress
+            ? await hasVoted(activeBallot.contractAddress, primaryAccount)
+            : false;
+          setUserHasVoted(already);
+        } catch (checkError) {
+          console.warn("Unable to determine vote status after account refresh:", checkError);
+        }
+      }
+      return primaryAccount;
+    } catch (error) {
+      console.warn("Failed to refresh account state", error);
+      return normalizedAccount;
+    }
+  }, [activeBallot?.contractAddress, normalizedAccount, setCurrentAccount, setCurrentUser]);
   const handleOpenReceiptModal = useCallback(() => {
     if (!lastReceipt) {
       setStatus("저장된 투표 영수증이 없어요. 페이지를 새로고침해 주세요.");
@@ -436,7 +511,7 @@ export function VotingApp() {
         throw new Error("Unable to determine latest block number");
       }
 
-      const votingContractAddress = getConfig().VOTING_CONTRACT_ADDRESS?.toLowerCase();
+      const votingContractAddress = activeBallot?.contractAddress?.toLowerCase();
       if (!votingContractAddress) {
         throw new Error("Voting contract address is not configured");
       }
@@ -499,7 +574,7 @@ export function VotingApp() {
     } finally {
       setBlockFeedLoading(false);
     }
-  }, [demoMode, lastReceipt?.blockNumber, walletConnected]);
+  }, [activeBallot?.contractAddress, demoMode, lastReceipt?.blockNumber, walletConnected]);
 
   const redirectToVerification = useCallback(() => {
     resetVerificationFlow();
@@ -508,88 +583,123 @@ export function VotingApp() {
 
   const loadBallotMetadata = useCallback(async () => {
     console.log('[loadBallotMetadata] Starting...');
-    try {
-      const metadata = await fetchBallotMetadata();
-      console.log('[loadBallotMetadata] Received metadata:', metadata);
+    const addresses = normalizeContractAddresses(
+      getConfig().VOTING_CONTRACT_ADDRESSES,
+      getConfig().VOTING_CONTRACT_ADDRESS
+    );
+    if (!addresses.length) {
+      console.warn("No voting contract addresses configured; falling back to defaults");
+      setBallots(FALLBACK_BALLOTS);
+      setActiveBallot(FALLBACK_BALLOTS[0]);
+      return;
+    }
+    const results: BallotMeta[] = [];
 
-      const normalizeTimestamp = (value: number | null | undefined): string => {
-        if (!value || value <= 0) {
-          console.warn('[normalizeTimestamp] Invalid value:', value);
-          return "";
-        }
+    for (let index = 0; index < addresses.length; index += 1) {
+      const address = addresses[index];
+      try {
+        const metadata = await fetchBallotMetadata(address);
+        console.log('[loadBallotMetadata] Received metadata for', address, metadata);
 
-        try {
-          // Value should already be in milliseconds from getUint()
-          // But check if it might be in seconds (legacy behavior)
-          let milliseconds: number;
-
-          if (value < 1e12) {
-            // Likely seconds (< year 2001 in milliseconds)
-            milliseconds = value * 1000;
-            console.log(`[normalizeTimestamp] Detected seconds, converting: ${value} -> ${milliseconds}ms`);
-          } else {
-            // Already in milliseconds
-            milliseconds = value;
-          }
-
-          const date = new Date(milliseconds);
-          if (isNaN(date.getTime())) {
-            console.error(`[normalizeTimestamp] Invalid date from ${value} (${milliseconds}ms)`);
+        const normalizeTimestamp = (value: number | null | undefined): string => {
+          if (!value || value <= 0) {
             return "";
           }
+          try {
+            let milliseconds: number;
+            if (value < 1e12) {
+              milliseconds = value * 1000;
+            } else {
+              milliseconds = value;
+            }
+            const date = new Date(milliseconds);
+            if (isNaN(date.getTime())) {
+              return "";
+            }
+            return date.toISOString();
+          } catch (error) {
+            return "";
+          }
+        };
 
-          const result = date.toISOString();
-          console.log(`[normalizeTimestamp] ${value}ms => ${result}`);
-          return result;
-        } catch (error) {
-          console.error('[normalizeTimestamp] Error:', error, 'Value:', value);
-          return "";
+        const normalizedId =
+          (metadata.id && metadata.id.trim()) ||
+          `${address.toLowerCase()}`;
+        const normalizedTitle =
+          (metadata.title && metadata.title.trim()) ||
+          `온체인 투표 #${index + 1}`;
+        const normalizedDescription =
+          (metadata.description && metadata.description.trim()) ||
+          `${shortenAddress(address)} 컨트랙트에서 불러온 투표입니다.`;
+
+        const normalized: BallotMeta = {
+          id: normalizedId,
+          contractAddress: address,
+          title: normalizedTitle,
+          description: normalizedDescription,
+          opensAt: normalizeTimestamp(metadata.opensAt),
+          closesAt: normalizeTimestamp(metadata.closesAt),
+          announcesAt: normalizeTimestamp(metadata.announcesAt),
+          expectedVoters: metadata.expectedVoters,
+        };
+        results.push(normalized);
+      } catch (error) {
+        console.error("[loadBallotMetadata] Error fetching for", address, error);
+        results.push({
+          id: address.toLowerCase(),
+          contractAddress: address,
+          title: `투표 컨트랙트 ${shortenAddress(address)}`,
+          description: "컨트랙트 메타데이터를 불러오지 못했어요.",
+          opensAt: "",
+          closesAt: "",
+          announcesAt: "",
+          expectedVoters: null,
+        });
+      }
+    }
+
+    if (results.length > 0) {
+      setBallots(results);
+      setActiveBallot((previous) => {
+        const foundByAddress = results.find(
+          (ballot) =>
+            ballot.contractAddress.toLowerCase() ===
+            previous.contractAddress.toLowerCase()
+        );
+        if (foundByAddress) {
+          return foundByAddress;
         }
-      };
-
-      const normalized: BallotMeta = {
-        id: metadata.id || "onchain-ballot",
-        title: metadata.title || "준비 중인 투표",
-        description:
-          metadata.description ||
-          "컨트랙트에서 세부 정보를 불러오지 못했어요.",
-        opensAt: normalizeTimestamp(metadata.opensAt),
-        closesAt: normalizeTimestamp(metadata.closesAt),
-        announcesAt: normalizeTimestamp(metadata.announcesAt),
-        expectedVoters: metadata.expectedVoters,
-      };
-
-      console.log('[loadBallotMetadata] Normalized:', normalized);
-      setBallots([normalized]);
-      setActiveBallot((previous) =>
-        previous && previous.id === normalized.id ? normalized : normalized
-      );
-    } catch (error) {
-      console.error("[loadBallotMetadata] Error:", error);
-      console.warn("Failed to load ballot metadata:", error);
+        const foundById = results.find(b => b.id === previous.id);
+        return foundById || results[0];
+      });
+    } else {
+      console.warn("Failed to load any ballot metadata");
       setBallots(FALLBACK_BALLOTS);
       setActiveBallot(FALLBACK_BALLOTS[0]);
     }
   }, []);
 
   const loadCandidates = useCallback(async () => {
+    if (!activeBallot?.contractAddress) return;
     setLoading(true);
     try {
       const web3Instance = getWeb3();
-      const proposals = await fetchProposals();
+      const proposals = await fetchProposals(activeBallot.contractAddress);
       const accounts = await web3Instance.eth.getAccounts();
       const primaryAccount = accounts[0] ?? null;
 
       if (primaryAccount) {
+        setCurrentAccount(primaryAccount);
         setCurrentUser(shortenAddress(primaryAccount));
         try {
-          const already = await hasVoted(primaryAccount);
+          const already = await hasVoted(activeBallot.contractAddress, primaryAccount);
           setUserHasVoted(already);
         } catch (voteError) {
           console.warn("Failed to check voter status:", voteError);
         }
       } else {
         setCurrentUser("익명 유권자");
+        setCurrentAccount(null);
         setUserHasVoted(false);
       }
 
@@ -641,11 +751,11 @@ export function VotingApp() {
         activeBallot.turnout ??
         calculateTurnout(fallbackVoteSum, activeBallot.expectedVoters)
       );
-      setUserHasVoted(Boolean(readLastVoteSnapshot()));
+      setUserHasVoted(Boolean(readLastVoteSnapshot(normalizedAccount, ballotStorageKey)));
     } finally {
       setLoading(false);
     }
-  }, [activeBallot, metaMap]);
+  }, [activeBallot, ballotStorageKey, metaMap, normalizedAccount]);
 
   const connectWallet = useCallback(async () => {
     if (!hasBrowserWallet()) {
@@ -670,7 +780,7 @@ export function VotingApp() {
         statusWithCode(
           "RPC_TIMEOUT",
           error?.message ??
-            `지갑 연결에 실패했어요. ${expectedChainLabel} 체인을 사용 중인지 확인해 주세요.`
+          `지갑 연결에 실패했어요. ${expectedChainLabel} 체인을 사용 중인지 확인해 주세요.`
         )
       );
     }
@@ -679,11 +789,11 @@ export function VotingApp() {
   const handleDisconnect = useCallback(async () => {
     const clearAndRedirect = () => {
       setCurrentUser("익명 유권자");
+      setCurrentAccount(null);
       setUserHasVoted(false);
       setLastReceipt(null);
       setLastCandidateId(null);
       setLastCandidateName(null);
-      persistLastVoteSnapshot(null);
       sessionStorage.clear();
       localStorage.removeItem("walletAddress");
       redirectToVerification();
@@ -833,12 +943,19 @@ export function VotingApp() {
       setLastReceipt(simulatedReceipt);
       setLastCandidateId(candidate.id);
       setLastCandidateName(candidate.name);
-      persistLastVoteSnapshot({
-        version: LAST_VOTE_STORAGE_VERSION,
-        candidateId: candidate.id,
-        candidateName: candidate.name,
-        receipt: simulatedReceipt,
-      });
+      const storageKey = ballotStorageKey ?? "demo";
+      persistLastVoteSnapshot(
+        normalizedAccount ?? "demo",
+        storageKey,
+        {
+          candidateId: candidate.id,
+          candidateName: candidate.name,
+          receipt: simulatedReceipt,
+          ballotId: activeBallot?.id,
+          ballotTitle: activeBallot?.title,
+          ballotContract: activeBallot?.contractAddress,
+        }
+      );
       setUserHasVoted(true);
       setStatus("데모 모드에서 영수증을 생성했어요. '내 투표 확인하기' 버튼으로 UI를 미리 볼 수 있습니다.");
       return;
@@ -863,19 +980,41 @@ export function VotingApp() {
       setStatus("선택한 투표는 현재 진행 중이 아니에요.");
       return;
     }
+    const activeAccount = await refreshAccountState();
+    if (!activeAccount) {
+      setStatus("지갑을 다시 연결해 주세요. 같은 지갑에서만 내 투표를 확인할 수 있어요.");
+      return;
+    }
 
     try {
       setStatus(`'${candidate.name}' 후보에게 투표 트랜잭션을 전송 중입니다…`);
-      const receipt = await castVote(candidate.id);
+      const receipt = await castVote(activeBallot.contractAddress, candidate.id, activeAccount);
       const normalizedReceipt = normalizeReceipt(receipt);
       setLastReceipt(normalizedReceipt);
       setLastCandidateId(candidate.id);
       setLastCandidateName(candidate.name);
-      persistLastVoteSnapshot({
-        version: LAST_VOTE_STORAGE_VERSION,
-        candidateId: candidate.id,
-        candidateName: candidate.name,
-        receipt: normalizedReceipt,
+      const storageKey = ballotStorageKey ?? buildBallotKeyForStorage(activeBallot) ?? "default";
+      persistLastVoteSnapshot(
+        normalizedAccount,
+        storageKey,
+        {
+          candidateId: candidate.id,
+          candidateName: candidate.name,
+          receipt: normalizedReceipt,
+          ballotId: activeBallot?.id,
+          ballotTitle: activeBallot?.title,
+          ballotContract: activeBallot?.contractAddress,
+        }
+      );
+      void syncVoteReceiptToSupabase({
+        walletAddress: activeAccount,
+        ballotId: activeBallot?.id ?? "",
+        proposalId: candidate.id,
+        txHash: receipt.transactionHash,
+        blockNumber: toNumberOrNull(receipt.blockNumber),
+        status: "success",
+        chainId: getConfig().CHAIN_ID,
+        rawReceipt: receipt,
       });
       setStatus(
         `블록 #${normalizedReceipt.blockNumber ?? "확인 중"}에 포함 완료! '내 투표 확인하기' 버튼에서 세부 정보를 확인하세요.`
@@ -890,11 +1029,35 @@ export function VotingApp() {
         setStatus(statusWithCode("TX_REJECTED", "서명 요청이 지갑에서 거절됐어요. 서명을 승인해야 투표가 완료됩니다."));
         return;
       }
+
+      const message: string = error?.message ?? "";
+      if (message.includes("AlreadyVoted")) {
+        setUserHasVoted(true);
+        setStatus("이미 투표가 기록된 지갑이에요. '내 투표 확인하기' 버튼을 사용해 주세요.");
+        return;
+      }
+      if (message.includes("VotingNotOpen")) {
+        setStatus("투표가 아직 시작되지 않았습니다. 오픈 시간을 확인해 주세요.");
+        return;
+      }
+      if (message.includes("VotingClosed")) {
+        setStatus("투표가 종료되었습니다.");
+        return;
+      }
+      if (message.includes("VoterNotVerified")) {
+        setStatus("SBT가 없는 지갑입니다. 인증 후 다시 시도해 주세요.");
+        return;
+      }
+      if (message.toLowerCase().includes("execution reverted")) {
+        setStatus(statusWithCode("CONTRACT_REVERT", message));
+        return;
+      }
+
       setStatus(
         statusWithCode(
           "RPC_TIMEOUT",
           error?.message ??
-            "투표에 실패했어요. 지갑 연결과 네트워크를 다시 확인해 주세요."
+          "투표에 실패했어요. 지갑 연결과 네트워크를 다시 확인해 주세요."
         )
       );
     }
@@ -954,10 +1117,13 @@ export function VotingApp() {
           return;
         }
 
+        setCurrentAccount(primaryAccount);
         setCurrentUser(shortenAddress(primaryAccount));
 
         try {
-          const already = await hasVoted(primaryAccount);
+          const already = activeBallot?.contractAddress
+            ? await hasVoted(activeBallot.contractAddress, primaryAccount)
+            : false;
           setUserHasVoted(already);
         } catch (checkError) {
           console.warn("Unable to determine vote status:", checkError);
@@ -969,12 +1135,30 @@ export function VotingApp() {
     }
 
     void detectUser();
-  }, [redirectToVerification]);
+  }, [activeBallot?.contractAddress, redirectToVerification]);
+
+  useEffect(() => {
+    if (!normalizedAccount) {
+      setLastReceipt(null);
+      setLastCandidateId(null);
+      setLastCandidateName(null);
+      setUserHasVoted(false);
+      return;
+    }
+    const snapshot = readLastVoteSnapshot(normalizedAccount, ballotStorageKey);
+    setLastReceipt(snapshot?.receipt ?? null);
+    setLastCandidateId(snapshot?.candidateId ?? null);
+    setLastCandidateName(snapshot?.candidateName ?? null);
+    if (snapshot) {
+      setUserHasVoted(true);
+    }
+  }, [normalizedAccount, ballotStorageKey]);
 
   useEffect(() => {
     const unsubscribeAccounts = onAccountsChanged(async (accounts) => {
       if (!accounts.length) {
         setCurrentUser("익명 유권자");
+        setCurrentAccount(null);
         setUserHasVoted(false);
         setStatus("지갑 연결이 해제됐어요.");
         redirectToVerification();
@@ -983,8 +1167,11 @@ export function VotingApp() {
 
       const primaryAccount = accounts[0];
       setCurrentUser(shortenAddress(primaryAccount));
+      setCurrentAccount(primaryAccount);
       try {
-        const already = await hasVoted(primaryAccount);
+        const already = activeBallot?.contractAddress
+          ? await hasVoted(activeBallot.contractAddress, primaryAccount)
+          : false;
         setUserHasVoted(already);
       } catch (eventError) {
         console.warn(
@@ -1056,6 +1243,9 @@ export function VotingApp() {
                         <div className="nav-item__text">
                           <strong>{ballot.title}</strong>
                           <span>{formatBallotStatus(deriveBallotStatus(ballot))}</span>
+                          <span className="nav-item__address">
+                            {shortenAddress(ballot.contractAddress)}
+                          </span>
                         </div>
                         <time dateTime={ballot.closesAt}>
                           {formatDate(ballot.closesAt)}
@@ -1109,6 +1299,10 @@ export function VotingApp() {
               </span>
               <h1 className="hero-heading">{activeBallot.title}</h1>
               <p className="hero-subheading">{activeBallot.description}</p>
+              <div className="hero-contract" title={activeBallot.contractAddress}>
+                <span>컨트랙트</span>
+                <code>{shortenAddress(activeBallot.contractAddress)}</code>
+              </div>
             </div>
 
             <div className="hero-insights">
@@ -1248,7 +1442,30 @@ export function VotingApp() {
         <section className="block-visual">
           <div className="block-visual__header">
             <div>
-              <h3>최근 블록 체인</h3>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <h3>최근 블록 체인</h3>
+                <button
+                  type="button"
+                  className="help-button"
+                  onClick={() => setHelpModalOpen(true)}
+                  style={{
+                    background: "none",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "50%",
+                    width: "24px",
+                    height: "24px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    color: "#6b7280",
+                  }}
+                  aria-label="블록체인 도움말"
+                >
+                  ?
+                </button>
+              </div>
               <p className="block-visual__status">
                 {blockPollingActive
                   ? "15초 간격으로 자동 새로고침"
@@ -1294,19 +1511,15 @@ export function VotingApp() {
                       </header>
                       <dl>
                         <div>
-                          <dt>해시</dt>
+                          <dt>블록 해시 (고유 번호)</dt>
                           <dd>{block.hash}</dd>
                         </div>
                         <div>
-                          <dt>Parent</dt>
+                          <dt>이전 블록 연결</dt>
                           <dd>{block.parentHash}</dd>
                         </div>
                         <div>
-                          <dt>타임스탬프</dt>
-                          <dd>{block.timestampLabel}</dd>
-                        </div>
-                        <div>
-                          <dt>Tx Count</dt>
+                          <dt>트랜잭션 수</dt>
                           <dd>{block.transactionCount ?? "-"}</dd>
                         </div>
                       </dl>
@@ -1399,15 +1612,6 @@ export function VotingApp() {
                     <span className="vote-modal__label">트랜잭션 해시</span>
                     <code className="vote-modal__code">{lastReceipt.transactionHash}</code>
                   </div>
-                  <div className="vote-modal__row-actions">
-                    <button
-                      type="button"
-                      className="copy-button"
-                      onClick={() => handleCopyToClipboard(lastReceipt.transactionHash, "트랜잭션 해시")}
-                    >
-                      복사
-                    </button>
-                  </div>
                 </div>
                 <div className="vote-modal__row">
                   <div>
@@ -1416,17 +1620,16 @@ export function VotingApp() {
                       {lastReceipt.fromAddress ?? "확인 중"}
                     </code>
                   </div>
-                  {lastReceipt.fromAddress && (
-                    <div className="vote-modal__row-actions">
-                      <button
-                        type="button"
-                        className="copy-button"
-                        onClick={() => handleCopyToClipboard(lastReceipt.fromAddress ?? "", "보낸 지갑 주소")}
-                      >
-                        복사
-                      </button>
-                    </div>
-                  )}
+                </div>
+                <div className="vote-modal__row">
+                  <div>
+                    <span className="vote-modal__label">블록 해시</span>
+                    {blockHashValue ? (
+                      <code className="vote-modal__code">{blockHashValue}</code>
+                    ) : (
+                      <strong>{blockHashLabel}</strong>
+                    )}
+                  </div>
                 </div>
               </section>
 
@@ -1435,20 +1638,8 @@ export function VotingApp() {
                   <div className="vote-modal__cell">
                     <span className="vote-modal__label">블록 번호</span>
                     <strong>#{blockNumberForDisplay ?? "확인 중"}</strong>
-                    {blockNumberForDisplay != null && (
-                      <button
-                        type="button"
-                        className="copy-button"
-                        onClick={() => handleCopyToClipboard(blockNumberForDisplay.toString(), "블록 번호")}
-                      >
-                        복사
-                      </button>
-                    )}
                   </div>
-                  <div className="vote-modal__cell">
-                    <span className="vote-modal__label">블록 타임스탬프</span>
-                    <strong>{blockTimestampLabel}</strong>
-                  </div>
+
                   <div className="vote-modal__cell">
                     <span className="vote-modal__label">해당 블록 내 트랜잭션</span>
                     <strong>
@@ -1458,25 +1649,6 @@ export function VotingApp() {
                           ? "확인 중"
                           : `${blockTxCountLabel}건`}
                     </strong>
-                  </div>
-                  <div className="vote-modal__cell">
-                    <span className="vote-modal__label">블록 해시</span>
-                    {blockHashValue ? (
-                      <>
-                        <code className="vote-modal__code">{blockHashValue}</code>
-                        <div className="vote-modal__row-actions vote-modal__row-actions--stacked">
-                          <button
-                            type="button"
-                            className="copy-button"
-                            onClick={() => handleCopyToClipboard(blockHashValue, "블록 해시")}
-                          >
-                            복사
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <strong>{blockHashLabel}</strong>
-                    )}
                   </div>
                 </div>
                 {blockLoading && (
@@ -1534,6 +1706,57 @@ export function VotingApp() {
                       <li key={`${pledgeModal.name}-${index}`}>{pledge}</li>
                     )
                   )}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {helpModalOpen && (
+          <div
+            className="pledge-modal-overlay"
+            role="presentation"
+            onClick={() => setHelpModalOpen(false)}
+          >
+            <div
+              className="pledge-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="help-modal-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <header className="pledge-modal__header">
+                <div>
+                  <h3 id="help-modal-title">블록체인이란?</h3>
+                </div>
+                <button
+                  type="button"
+                  className="pledge-modal__close"
+                  onClick={() => setHelpModalOpen(false)}
+                >
+                  닫기
+                </button>
+              </header>
+              <div className="pledge-modal__body">
+                <ul style={{ listStyle: "none", padding: 0, display: "flex", flexDirection: "column", gap: "16px" }}>
+                  <li>
+                    <strong>📦 블록 (Block)</strong>
+                    <p style={{ marginTop: "4px", color: "#4b5563" }}>
+                      투표 용지가 담긴 디지털 상자입니다. 한 번 닫히면 내용을 바꿀 수 없어요.
+                    </p>
+                  </li>
+                  <li>
+                    <strong>🔗 체인 (Chain)</strong>
+                    <p style={{ marginTop: "4px", color: "#4b5563" }}>
+                      상자들이 사슬처럼 연결되어 있어 순서를 바꾸거나 중간에 끼어들 수 없습니다.
+                    </p>
+                  </li>
+                  <li>
+                    <strong>🔑 해시 (Hash)</strong>
+                    <p style={{ marginTop: "4px", color: "#4b5563" }}>
+                      데이터의 지문입니다. 내용이 점 하나라도 바뀌면 해시값도 완전히 달라져 조작을 바로 알 수 있어요.
+                    </p>
+                  </li>
                 </ul>
               </div>
             </div>
@@ -1732,7 +1955,10 @@ function formatBlockTimestamp(value: unknown): string {
   });
 }
 
-function statusWithCode(code: "RPC_TIMEOUT" | "UNEXPECTED_CHAIN" | "TX_REJECTED", message: string): string {
+function statusWithCode(
+  code: "RPC_TIMEOUT" | "UNEXPECTED_CHAIN" | "TX_REJECTED" | "CONTRACT_REVERT",
+  message: string
+): string {
   return `[${code}] ${message}`;
 }
 
@@ -1802,40 +2028,181 @@ function coerceStatus(value: unknown): boolean {
   return true;
 }
 
-function readLastVoteSnapshot(): StoredVotePayload | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
+function buildSnapshotKey(account: string): string {
+  return `${LAST_VOTE_STORAGE_KEY}:${account.toLowerCase()}`;
+}
+
+function buildBallotKeyForStorage(ballot?: BallotMeta | null): string | null {
+  if (!ballot) return null;
+  if (ballot.contractAddress) return ballot.contractAddress.toLowerCase();
+  if (ballot.id) return `id:${ballot.id.toLowerCase()}`;
+  return null;
+}
+
+function parseStoredVoteMap(raw: string | null): StoredVoteMap | null {
+  if (!raw) return null;
   try {
-    const raw = window.sessionStorage.getItem(LAST_VOTE_STORAGE_KEY);
-    if (!raw) {
-      return null;
+    const parsed = JSON.parse(raw);
+    // v2 shape: { version, ballots: {} }
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      parsed.version === LAST_VOTE_STORAGE_VERSION &&
+      parsed.ballots &&
+      typeof parsed.ballots === "object"
+    ) {
+      return parsed as StoredVoteMap;
     }
-    const parsed = JSON.parse(raw) as StoredVotePayload | null;
-    if (!parsed || parsed.version !== LAST_VOTE_STORAGE_VERSION) {
-      window.sessionStorage.removeItem(LAST_VOTE_STORAGE_KEY);
-      return null;
+    // v1 legacy shape: single payload with version 1
+    if (parsed && parsed.version === 1) {
+      const legacyPayload: StoredVotePayload = {
+        candidateId: parsed.candidateId,
+        candidateName: parsed.candidateName,
+        receipt: parsed.receipt,
+      };
+      return {
+        version: LAST_VOTE_STORAGE_VERSION,
+        ballots: { legacy: legacyPayload },
+      };
     }
-    return parsed;
   } catch (error) {
     console.warn("Failed to parse last vote snapshot", error);
+  }
+  return null;
+}
+
+function readVoteMap(account: string | null | undefined): StoredVoteMap | null {
+  if (typeof window === "undefined" || !account) return null;
+  const key = buildSnapshotKey(account);
+  const parsed = parseStoredVoteMap(window.localStorage.getItem(key));
+  if (!parsed) {
+    return null;
+  }
+  // Normalize version back into storage if we upgraded from legacy
+  if (parsed.version !== LAST_VOTE_STORAGE_VERSION) {
+    window.localStorage.removeItem(key);
+    return null;
+  }
+  return parsed;
+}
+
+function readLastVoteSnapshot(
+  account: string | null | undefined,
+  ballotKey: string | null
+): StoredVotePayload | null {
+  if (!ballotKey) return null;
+  const map = readVoteMap(account);
+  if (!map) return null;
+  return map.ballots[ballotKey] ?? null;
+}
+
+type ReceiptSyncPayload = {
+  walletAddress: string;
+  ballotId: string;
+  proposalId: number;
+  txHash: string;
+  blockNumber: number | null;
+  status: string;
+  chainId?: string;
+  rawReceipt?: TransactionReceipt;
+};
+
+async function syncVoteReceiptToSupabase(payload: ReceiptSyncPayload): Promise<void> {
+  if (!payload.walletAddress || !payload.ballotId) return;
+  try {
+    const web3Instance = getWeb3();
+    const signatureMessage = buildReceiptSignatureMessage(
+      payload.walletAddress,
+      payload.ballotId,
+      payload.proposalId,
+      payload.txHash
+    );
+    const signature = await web3Instance.eth.personal.sign(
+      signatureMessage,
+      payload.walletAddress,
+      ""
+    );
+
+    const sanitizedReceipt = payload.rawReceipt
+      ? sanitizeReceiptForStorage(payload.rawReceipt)
+      : null;
+
+    const response = await fetch("/api/save-vote-receipt", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        walletAddress: payload.walletAddress,
+        ballotId: payload.ballotId,
+        proposalId: payload.proposalId,
+        txHash: payload.txHash,
+        blockNumber: payload.blockNumber ?? undefined,
+        status: payload.status ?? "success",
+        chainId: payload.chainId,
+        rawReceipt: sanitizedReceipt,
+        signature,
+      }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`save-vote-receipt failed: ${response.status} ${text}`);
+    }
+    console.log("✅ Vote receipt synced to Supabase");
+  } catch (error) {
+    console.warn("Failed to sync vote receipt to Supabase", error);
+  }
+}
+
+function buildReceiptSignatureMessage(
+  walletAddress: string,
+  ballotId: string,
+  proposalId: number,
+  txHash: string
+): string {
+  return [
+    "Vote receipt",
+    `address:${walletAddress}`,
+    `ballot:${ballotId}`,
+    `proposal:${proposalId}`,
+    `tx:${txHash}`,
+  ].join("\n");
+}
+
+function sanitizeReceiptForStorage(receipt: TransactionReceipt): any {
+  try {
+    return JSON.parse(
+      JSON.stringify(receipt, (_, value) =>
+        typeof value === "bigint" ? value.toString() : value
+      )
+    );
+  } catch {
     return null;
   }
 }
 
-function persistLastVoteSnapshot(payload: StoredVotePayload | null): void {
-  if (typeof window === "undefined") {
+function persistLastVoteSnapshot(
+  account: string | null | undefined,
+  ballotKey: string | null,
+  payload: StoredVotePayload | null
+): void {
+  if (typeof window === "undefined" || !account || !ballotKey) {
     return;
   }
+  const key = buildSnapshotKey(account);
   try {
+    const existing = readVoteMap(account) ?? { version: LAST_VOTE_STORAGE_VERSION, ballots: {} };
     if (!payload) {
-      window.sessionStorage.removeItem(LAST_VOTE_STORAGE_KEY);
-      return;
+      delete existing.ballots[ballotKey];
+      if (Object.keys(existing.ballots).length === 0) {
+        window.localStorage.removeItem(key);
+        return;
+      }
+    } else {
+      existing.ballots[ballotKey] = payload;
     }
-    window.sessionStorage.setItem(
-      LAST_VOTE_STORAGE_KEY,
-      JSON.stringify(payload)
-    );
+    window.localStorage.setItem(key, JSON.stringify(existing));
   } catch (error) {
     console.warn("Failed to persist last vote snapshot", error);
   }

@@ -27,6 +27,8 @@ export default function MyNFTsPage() {
         navigate("/email-verification");
     }, [navigate, resetVerificationFlow]);
 
+
+
     useEffect(() => {
         const loadNFTs = async () => {
             try {
@@ -76,25 +78,16 @@ export default function MyNFTsPage() {
     }, [redirectToVerification]);
 
     const handleDisconnect = async () => {
-        console.log("🔌 연결 해제 시작...");
-
         try {
             // 최신 MetaMask에서 지원하는 wallet_revokePermissions 시도
             if ((window as any).ethereum) {
-                console.log("📡 MetaMask 감지됨, wallet_revokePermissions 시도...");
-
                 try {
                     const result = await (window as any).ethereum.request({
                         method: 'wallet_revokePermissions',
                         params: [{ eth_accounts: {} }]
                     });
-                    console.log("✓ 지갑 연결 권한이 성공적으로 취소되었습니다.", result);
                 } catch (revokeError: any) {
                     // wallet_revokePermissions를 지원하지 않는 경우
-                    console.warn("⚠️ wallet_revokePermissions 실패:", revokeError);
-                    console.log("에러 코드:", revokeError.code);
-                    console.log("에러 메시지:", revokeError.message);
-
                     // 사용자에게 수동 연결 해제 안내
                     if (!window.confirm(
                         "지갑 연결을 해제하시겠습니까?\n\n" +
@@ -104,21 +97,16 @@ export default function MyNFTsPage() {
                         "2. 연결된 사이트 관리\n" +
                         "3. 이 사이트 연결 해제"
                     )) {
-                        console.log("❌ 사용자가 연결 해제를 취소했습니다.");
                         return; // 사용자가 취소한 경우
                     }
                 }
-            } else {
-                console.warn("⚠️ MetaMask를 찾을 수 없습니다.");
             }
 
             // 로컬 세션 데이터 정리
-            console.log("🧹 세션 데이터 정리 중...");
             sessionStorage.clear();
             localStorage.removeItem("walletAddress");
 
             // Auth 페이지로 이동
-            console.log("🏠 Auth 페이지로 이동");
             redirectToVerification();
         } catch (error) {
             console.error("❌ Disconnect error:", error);
@@ -300,30 +288,10 @@ export default function MyNFTsPage() {
                                             </div>
                                         )}
                                         <div className="nft-card-header">
-                                            <h3 className="nft-token-id">NFT #{nft.tokenId}</h3>
+                                            <h3 className="nft-token-id">{nft.metadata?.name || `NFT #${nft.tokenId}`}</h3>
                                             <span className="nft-rarity" style={{ color: rarity.color }}>
                                                 {rarity.name}
                                             </span>
-                                        </div>
-                                        <div className="nft-card-body">
-                                            <div className="nft-info-row">
-                                                <span className="nft-info-label">Ballot ID</span>
-                                                <span className="nft-info-value nft-ballot-id">
-                                                    {nft.ballotId}
-                                                </span>
-                                            </div>
-                                            <div className="nft-info-row">
-                                                <span className="nft-info-label">투표한 후보</span>
-                                                <span className="nft-info-value">#{parseInt(nft.proposalId) + 1}</span>
-                                            </div>
-                                            <div className="nft-info-row" style={{ border: 'none' }}>
-                                                <span className="nft-info-label">토큰 ID</span>
-                                                <span className="nft-info-value">{nft.tokenId}</span>
-                                            </div>
-                                        </div>
-                                        <div className="nft-card-footer">
-                                            <span className="nft-timestamp">🕐 {new Date().toLocaleDateString('ko-KR')}</span>
-                                            <button className="nft-share-btn">공유 📤</button>
                                         </div>
                                     </div>
                                 );
@@ -354,7 +322,7 @@ export default function MyNFTsPage() {
                             {/* 오른쪽: 상세 정보 */}
                             <div className="nft-modal-details">
                                 <div className="nft-modal-header">
-                                    <h2 className="nft-modal-title">NFT #{selectedNFT.tokenId}</h2>
+                                    <h2 className="nft-modal-title">{selectedNFT.metadata?.name || `NFT #${selectedNFT.tokenId}`}</h2>
                                     <span
                                         className="nft-modal-rarity"
                                         style={{ color: getRarity(selectedNFT.tokenId).color }}
@@ -382,7 +350,7 @@ export default function MyNFTsPage() {
                                     <div className="nft-modal-info-item">
                                         <span className="nft-modal-label">⏰ 발행 시간</span>
                                         <span className="nft-modal-value">
-                                            {new Date().toLocaleString('ko-KR')}
+                                            {new Date(selectedNFT.mintedAt || selectedNFT.createdAt || Date.now()).toLocaleString('ko-KR')}
                                         </span>
                                     </div>
                                 </div>
@@ -390,8 +358,8 @@ export default function MyNFTsPage() {
                                 <div className="nft-modal-description">
                                     <h3 className="nft-modal-section-title">📝 설명</h3>
                                     <p className="nft-modal-description-text">
-                                        이 NFT는 {selectedNFT.ballotId} 투표에 참여한 증거로 발행되었습니다.
-                                        블록체인에 영구적으로 기록되며, 투표 참여를 인증합니다.
+                                        {selectedNFT.metadata?.description ||
+                                            `이 NFT는 ${selectedNFT.ballotId} 투표에 참여한 증거로 발행되었습니다. 블록체인에 영구적으로 기록되며, 투표 참여를 인증합니다.`}
                                     </p>
                                 </div>
 

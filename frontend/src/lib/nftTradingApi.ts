@@ -10,7 +10,7 @@ import type {
   NftRarity,
 } from "../types/nftTrading";
 
-const API_BASE = "/api/nft-trading";
+const API_BASE = `${process.env.REACT_APP_API_BASE_URL || ""}/api/nft-trading`;
 
 export class NFTTradingApiError extends Error {
   status: number;
@@ -36,7 +36,8 @@ interface ErrorResponse {
 
 async function nftTradingFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
-    credentials: "include",
+    // Public, read-only endpoints; no cookies needed
+    credentials: "omit",
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",

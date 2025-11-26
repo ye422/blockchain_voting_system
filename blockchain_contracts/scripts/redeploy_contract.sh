@@ -98,6 +98,33 @@ echo "  - VotingRewardNFT (보상 NFT)"
 echo "  - VotingWithSBT (투표 컨트랙트)"
 echo ""
 
+# Generate NFT metadata if configured
+if [ -n "${NFT_NAME:-}" ] && [ -n "${MASCOT_CID:-}" ] && [ -n "${PINATA_API_KEY:-}" ] && [ -n "${PINATA_SECRET_KEY:-}" ]; then
+    echo "🎨 NFT 메타데이터 생성 중..."
+    
+    # Run metadata generator
+    node "../scripts/generate_nft_metadata.js" \
+        --image "${MASCOT_CID}" \
+        --ballot "${BALLOT_ID:-citizen-2025}" \
+        --name "${NFT_NAME}"
+    
+    if [ -f ".last_metadata_cid" ]; then
+        METADATA_CID=$(cat ".last_metadata_cid")
+        rm ".last_metadata_cid"
+        echo "✅ 메타데이터 생성 완료: ${METADATA_CID}"
+        echo "⚠️  MASCOT_CID를 메타데이터 CID로 덮어씁니다"
+        export MASCOT_CID="${METADATA_CID}"
+    else
+        echo "❌ 메타데이터 생성 실패 (CID 파일 없음)"
+        echo "⚠️  원본 MASCOT_CID(이미지)를 사용합니다"
+    fi
+elif [ -n "${NFT_NAME:-}" ] && [ -n "${MASCOT_CID:-}" ]; then
+    echo "⚠️  NFT_NAME이 설정되었지만 Pinata 키가 없습니다"
+    echo "📄 MASCOT_CID를 그대로 사용합니다 (메타데이터 생성 없음)"
+elif [ -n "${MASCOT_CID:-}" ]; then
+    echo "📄 deploy.env의 MASCOT_CID 사용"
+fi
+
 node "${SCRIPT_DIR}/deploy_sbt_system.js"
 
 if [ $? -eq 0 ]; then

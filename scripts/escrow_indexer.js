@@ -62,7 +62,10 @@ async function main() {
 
   const state = loadState();
   const latest = await provider.getBlockNumber();
-  const fromBlock = state?.lastProcessedBlock != null ? state.lastProcessedBlock + 1 : env.startBlock || latest;
+  // Respect START_BLOCK=0; only fall back to latest when startBlock is null/undefined.
+  const fromBlock = state?.lastProcessedBlock != null
+    ? state.lastProcessedBlock + 1
+    : (env.startBlock ?? latest);
   const toBlock = latest;
 
   console.log(`[escrow-indexer] scanning blocks ${fromBlock} -> ${toBlock}`);
@@ -71,13 +74,19 @@ async function main() {
     return;
   }
 
-  const events = await contract.queryFilter({}, fromBlock, toBlock);
+  const depositedLogs = await contract.queryFilter(contract.filters.Deposited(), fromBlock, toBlock);
+  const withdrawnLogs = await contract.queryFilter(contract.filters.Withdrawn(), fromBlock, toBlock);
+  const swappedLogs = await contract.queryFilter(contract.filters.Swapped(), fromBlock, toBlock);
+  const events = [...depositedLogs, ...withdrawnLogs, ...swappedLogs].sort(
+    (a, b) => (a.blockNumber || 0) - (b.blockNumber || 0) || (a.index || 0) - (b.index || 0)
+  );
   console.log(`[escrow-indexer] found ${events.length} events`);
 
   for (const ev of events) {
-    if (ev.event === "Deposited") {
+    const name = ev.fragment?.name || ev.eventName || ev.event; // ethers v6 compatibility
+    if (name === "Deposited") {
       const depositId = ev.args?.depositId?.toString();
-      await supabase.from("deposits").upsert({
+      const { error } = await supabase.from("deposits").upsert({
         id: depositId,
         owner_wallet: ev.args.owner,
         nft_contract: ev.args.nft,
@@ -85,32 +94,45 @@ async function main() {
         status: "ACTIVE",
         tx_hash: ev.transactionHash,
       });
-      console.log(`Upsert deposit ${depositId} ACTIVE`);
-    } else if (ev.event === "Withdrawn") {
+      if (error) {
+        console.error(`Upsert deposit ${depositId} ACTIVE failed`, error);
+      } else {
+        console.log(`Upsert deposit ${depositId} ACTIVE`);
+      }
+    } else if (name === "Withdrawn") {
       const depositId = ev.args?.depositId?.toString();
-      await supabase.from("deposits").upsert({
-        id: depositId,
-        status: "WITHDRAWN",
-        tx_hash: ev.transactionHash,
-      });
-      console.log(`Mark deposit ${depositId} WITHDRAWN`);
-    } else if (ev.event === "Swapped") {
+      const { error } = await supabase
+        .from("deposits")
+        .update({ status: "WITHDRAWN", tx_hash: ev.transactionHash })
+        .eq("id", depositId);
+      if (error) {
+        console.error(`Mark deposit ${depositId} WITHDRAWN failed`, error);
+      } else {
+        console.log(`Mark deposit ${depositId} WITHDRAWN`);
+      }
+    } else if (name === "Swapped") {
       const targetId = ev.args?.targetDepositId?.toString();
       const takerDepositId = ev.args?.takerDepositId?.toString();
       const taker = ev.args?.taker;
       const targetOwner = ev.args?.targetOwner;
-      await supabase.from("deposits").upsert([
-        { id: targetId, status: "CLOSED", tx_hash: ev.transactionHash },
-        { id: takerDepositId, status: "CLOSED", tx_hash: ev.transactionHash },
-      ]);
-      await supabase.from("swap_events").insert({
+      const { error: depErr } = await supabase
+        .from("deposits")
+        .update({ status: "CLOSED", tx_hash: ev.transactionHash })
+        .in("id", [targetId, takerDepositId]);
+      const { error: swapErr } = await supabase.from("swap_events").insert({
         initiator: taker,
         counterparty: targetOwner,
         my_deposit_id: takerDepositId,
         target_deposit_id: targetId,
         tx_hash: ev.transactionHash,
       });
-      console.log(`Swap target ${targetId} with taker ${takerDepositId}`);
+      if (depErr || swapErr) {
+        console.error(`Swap event upsert failed`, depErr || swapErr);
+      } else {
+        console.log(`Swap target ${targetId} with taker ${takerDepositId}`);
+      }
+    } else {
+      console.log(`Skipping unknown event ${name || "<no-name>"} at block ${ev.blockNumber}`);
     }
   }
 
@@ -118,7 +140,20 @@ async function main() {
   console.log(`[escrow-indexer] done. saved state at block ${toBlock}`);
 }
 
-main().catch((err) => {
-  console.error("[escrow-indexer] failed:", err);
+async function runForever() {
+  console.log("[escrow-indexer] Starting continuous indexing...");
+  while (true) {
+    try {
+      await main();
+    } catch (err) {
+      console.error("[escrow-indexer] Error in loop:", err);
+    }
+    // Wait 10 seconds before next run
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+  }
+}
+
+runForever().catch((err) => {
+  console.error("[escrow-indexer] Fatal error:", err);
   process.exit(1);
 });

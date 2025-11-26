@@ -17,14 +17,8 @@ export type Proposal = {
 // const expectedVoters = ...
 
 const typedAbi = VotingWithSBTAbi as AbiItem[];
-let cachedWriteContract: Contract<any> | null = null;
-let cachedReadContract: Contract<any> | null = null;
-let inFlightVote:
-  | {
-      proposalId: number;
-      promise: Promise<TransactionReceipt>;
-    }
-  | null = null;
+const cachedWriteContracts = new Map<string, Contract<any>>();
+const cachedReadContracts = new Map<string, Contract<any>>();
 
 export type ContractBallotMetadata = {
   id: string;
@@ -37,29 +31,33 @@ export type ContractBallotMetadata = {
 };
 
 function assertVotingContract(
+  contractAddress: string,
   mode: "read" | "write" = "write"
 ): Contract<any> {
-  const contractAddress = getConfig().VOTING_CONTRACT_ADDRESS;
   if (!contractAddress) {
-    throw new Error(
-      "스마트 컨트랙트 주소가 설정되지 않았어요. config.json을 확인해 주세요."
-    );
+    throw new Error("Contract address is required");
   }
   const web3 = getWeb3();
   if (mode === "read") {
-    if (!cachedReadContract) {
-      cachedReadContract = new web3.eth.Contract(typedAbi, contractAddress);
+    if (!cachedReadContracts.has(contractAddress)) {
+      cachedReadContracts.set(
+        contractAddress,
+        new web3.eth.Contract(typedAbi, contractAddress)
+      );
     }
-    return cachedReadContract;
+    return cachedReadContracts.get(contractAddress)!;
   }
-  if (!cachedWriteContract) {
-    cachedWriteContract = new web3.eth.Contract(typedAbi, contractAddress);
+  if (!cachedWriteContracts.has(contractAddress)) {
+    cachedWriteContracts.set(
+      contractAddress,
+      new web3.eth.Contract(typedAbi, contractAddress)
+    );
   }
-  return cachedWriteContract;
+  return cachedWriteContracts.get(contractAddress)!;
 }
 
-export async function fetchProposals(): Promise<Proposal[]> {
-  const contract = assertVotingContract("read");
+export async function fetchProposals(contractAddress: string): Promise<Proposal[]> {
+  const contract = assertVotingContract(contractAddress, "read");
   const total = Number.parseInt(
     await contract.methods.proposalCount().call(),
     10
@@ -88,59 +86,48 @@ export async function fetchProposals(): Promise<Proposal[]> {
   return proposals;
 }
 
-export async function hasVoted(address: string): Promise<boolean> {
+export async function hasVoted(contractAddress: string, address: string): Promise<boolean> {
   if (!address) {
     return false;
   }
-  return assertVotingContract("read").methods.hasVoted(address).call();
+  return assertVotingContract(contractAddress, "read").methods.hasVoted(address).call();
 }
 
-export function castVote(proposalId: number): Promise<TransactionReceipt> {
-  if (inFlightVote && inFlightVote.proposalId === proposalId) {
-    return inFlightVote.promise;
+export async function castVote(
+  contractAddress: string,
+  proposalId: number,
+  fromOverride?: string
+): Promise<TransactionReceipt> {
+  // Send a fresh transaction every time; do not cache in-flight promises
+  const contract = assertVotingContract(contractAddress, "write");
+  const web3 = getWeb3();
+  const accounts = fromOverride ? [fromOverride] : await web3.eth.getAccounts();
+  const from = fromOverride || accounts[0];
+
+  if (!from) {
+    throw new Error("No account available for sending the transaction.");
   }
 
-  if (inFlightVote) {
-    return inFlightVote.promise;
+  // Preflight to surface revert reasons before sending a real transaction
+  try {
+    await contract.methods.vote(proposalId).call({ from });
+  } catch (preflightError: any) {
+    throw new Error(preflightError?.message || "Vote preflight failed");
   }
 
-  const trackedPromise = (async () => {
-    const contract = assertVotingContract("write");
-    const web3 = getWeb3();
-    const accounts = await web3.eth.getAccounts();
-    const from = accounts[0];
+  const gasPrice = await web3.eth.getGasPrice();
+  const receipt = await contract.methods
+    .vote(proposalId)
+    .send({ from, gasPrice: String(gasPrice) });
 
-    if (!from) {
-      throw new Error("No account available for sending the transaction.");
-    }
-
-    const gasPrice = await web3.eth.getGasPrice();
-    const receipt = await contract.methods
-      .vote(proposalId)
-      .send({ from, gasPrice: String(gasPrice) });
-
-    return receipt as TransactionReceipt;
-  })();
-
-  inFlightVote = {
-    proposalId,
-    promise: trackedPromise,
-  };
-
-  trackedPromise.finally(() => {
-    if (inFlightVote?.promise === trackedPromise) {
-      inFlightVote = null;
-    }
-  });
-
-  return trackedPromise;
+  return receipt as TransactionReceipt;
 }
 
-export async function fetchBallotMetadata(): Promise<ContractBallotMetadata> {
+export async function fetchBallotMetadata(contractAddress: string): Promise<ContractBallotMetadata> {
   console.log('[fetchBallotMetadata] Starting...');
-  console.log('[fetchBallotMetadata] Contract address:', getConfig().VOTING_CONTRACT_ADDRESS);
+  console.log('[fetchBallotMetadata] Contract address:', contractAddress);
 
-  const contract = assertVotingContract("read");
+  const contract = assertVotingContract(contractAddress, "read");
   console.log('[fetchBallotMetadata] Contract instance created');
 
   const raw = (await contract.methods.ballotMetadata().call()) as {
