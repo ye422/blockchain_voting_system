@@ -22,6 +22,18 @@ contract VotingRewardNFT is ERC721URIStorage, Ownable {
     /// @dev Links each NFT to the ballot it was issued for
     mapping(uint256 => string) public tokenToBallot;
 
+    /// @notice NFT rarity tiers
+    /// @dev Higher index = rarer
+    enum Rarity {
+        Common,     // 0
+        Rare,       // 1
+        Epic,       // 2
+        Legendary   // 3
+    }
+
+    /// @notice Mapping from token ID to rarity
+    mapping(uint256 => Rarity) public tokenRarity;
+
     /// @notice Mapping from ballot ID to mascot image URI
     /// @dev Each ballot can have a unique mascot image
     mapping(string => string) public ballotMascots;
@@ -39,7 +51,8 @@ contract VotingRewardNFT is ERC721URIStorage, Ownable {
         address indexed to, 
         uint256 indexed tokenId, 
         string ballotId,
-        uint256 proposalId
+        uint256 proposalId,
+        Rarity rarity
     );
 
     /// @notice Emitted when a mascot image is set for a ballot
@@ -89,10 +102,14 @@ contract VotingRewardNFT is ERC721URIStorage, Ownable {
             _nextTokenId += 1;
         }
 
+        // Determine rarity using lightweight pseudo-randomness
+        Rarity rarity = _determineRarity(to, ballotId, proposalId, tokenId);
+
         _safeMint(to, tokenId);
 
         // Store metadata
         tokenToBallot[tokenId] = ballotId;
+        tokenRarity[tokenId] = rarity;
         voteRecords[tokenId] = VoteRecord({
             voter: to,
             timestamp: block.timestamp,
@@ -105,7 +122,7 @@ contract VotingRewardNFT is ERC721URIStorage, Ownable {
             _setTokenURI(tokenId, mascotURI);
         }
 
-        emit RewardMinted(to, tokenId, ballotId, proposalId);
+        emit RewardMinted(to, tokenId, ballotId, proposalId, rarity);
     }
 
     /// @notice Set mascot image URI for a ballot
@@ -189,6 +206,43 @@ contract VotingRewardNFT is ERC721URIStorage, Ownable {
     /// @return The base token URI string
     function _baseURI() internal view virtual override returns (string memory) {
         return _baseTokenURI;
+    }
+
+    /// @notice Get rarity of a token
+    /// @param tokenId The token ID to look up
+    /// @return rarity Rarity enum value
+    function getRarity(uint256 tokenId) external view returns (Rarity rarity) {
+        _requireOwned(tokenId);
+        return tokenRarity[tokenId];
+    }
+
+    /// @dev Select rarity using simple weighted distribution (basis points)
+    /// Legend: Common 25%, Rare 25%, Epic 25%, Legendary 25%
+    function _determineRarity(
+        address to,
+        string memory ballotId,
+        uint256 proposalId,
+        uint256 tokenId
+    ) internal view returns (Rarity) {
+        // Mix several entropy sources; suitable for low-stakes use.
+        uint256 rand = uint256(
+            keccak256(
+                abi.encodePacked(
+                    block.prevrandao,
+                    block.timestamp,
+                    msg.sender,
+                    to,
+                    ballotId,
+                    proposalId,
+                    tokenId
+                )
+            )
+        ) % 10000; // 0 - 9999
+
+        if (rand < 2500) return Rarity.Common;      // 25%
+        if (rand < 5000) return Rarity.Rare;        // 25%
+        if (rand < 7500) return Rarity.Epic;        // 25%
+        return Rarity.Legendary;                    // 25%
     }
 
     /// @notice Get the total number of minted tokens

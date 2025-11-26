@@ -177,17 +177,6 @@ async function deployVotingContract(web3, deployer, compiled, args) {
 async function authorizeRewardMinter(web3, rewardAbi, rewardAddress, deployer, newVotingAddress, previousVotingAddress) {
   const contract = new web3.eth.Contract(rewardAbi, rewardAddress);
 
-  if (previousVotingAddress && previousVotingAddress.toLowerCase() !== newVotingAddress.toLowerCase()) {
-    try {
-      console.log('> Revoking old VotingWithSBT minter authorization');
-      await contract.methods
-        .setMinterAuthorization(previousVotingAddress, false)
-        .send({ from: deployer });
-    } catch (error) {
-      console.warn('  ⚠ Unable to revoke old authorization:', error.message);
-    }
-  }
-
   console.log('> Granting minter authorization to new VotingWithSBT');
   const tx = await contract.methods
     .setMinterAuthorization(newVotingAddress, true)

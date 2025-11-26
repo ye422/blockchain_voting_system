@@ -12,7 +12,7 @@ const schema = z.object({
   blockNumber: z.number().int().nonnegative().optional(),
   status: z.string().optional(),
   chainId: z.string().optional(),
-  rawReceipt: z.record(z.any()).optional(),
+  rawReceipt: z.any().optional(),
   signature: z.string().min(1),
 });
 
@@ -43,7 +43,11 @@ export default async function handler(req, res) {
 
   try {
     const body = await readJsonBody(req);
-    const payload = schema.parse(body);
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) {
+      throw new ValidationError("Invalid payload", parsed.error.flatten());
+    }
+    const payload = parsed.data;
 
     // 서명 검증
     const message = buildSignedMessage(payload);

@@ -344,7 +344,7 @@ export default function NFTExchangePage() {
           ownerWallet: detectedWallet || undefined,
           name: t.metadata?.name || `Reward NFT #${t.tokenId}`,
           image: t.imageUrl || "",
-          rarity: "Reward",
+          rarity: t.rarity || "커먼",
           tokenId: String(t.tokenId),
           contract: REWARD_NFT_ADDR || "",
         }));

@@ -1,6 +1,7 @@
 export interface AppConfig {
   CITIZEN_SBT_ADDRESS: string;
   VOTING_CONTRACT_ADDRESS: string;
+  VOTING_CONTRACT_ADDRESSES: string[];
   REWARD_NFT_ADDRESS: string;
   SIMPLE_ESCROW_ADDRESS: string;
   VERIFIER_ADDRESS: string;
