@@ -148,8 +148,8 @@ async function runForever() {
     } catch (err) {
       console.error("[escrow-indexer] Error in loop:", err);
     }
-    // Wait 10 seconds before next run
-    await new Promise((resolve) => setTimeout(resolve, 10000));
+    // Wait 1 second before next run
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 }
 

@@ -342,11 +342,17 @@
         "internalType": "uint256",
         "name": "proposalId",
         "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum VotingRewardNFT.Rarity",
+        "name": "rarity",
+        "type": "uint8"
       }
     ],
     "name": "RewardMinted",
     "type": "event",
-    "signature": "0x3e1832e1b4e86a04ad89ddc0119770bfe5020004f51cfc8c81a7b187ce55fb9f"
+    "signature": "0xd8914384c7ce1afbcd0ec10d0cbc441b7560b21755a4eef1303656d7d7c412f5"
   },
   {
     "anonymous": false,
@@ -497,6 +503,27 @@
     "type": "function",
     "constant": true,
     "signature": "0x3d255877"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getRarity",
+    "outputs": [
+      {
+        "internalType": "enum VotingRewardNFT.Rarity",
+        "name": "rarity",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function",
+    "constant": true,
+    "signature": "0x48758697"
   },
   {
     "inputs": [
@@ -810,6 +837,27 @@
     "type": "function",
     "constant": true,
     "signature": "0x95d89b41"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "tokenRarity",
+    "outputs": [
+      {
+        "internalType": "enum VotingRewardNFT.Rarity",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function",
+    "constant": true,
+    "signature": "0xafb0a369"
   },
   {
     "inputs": [

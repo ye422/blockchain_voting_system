@@ -198,7 +198,7 @@ export async function voteWithSBT(
  */
 export async function getRewardNFTs(
     address: string
-): Promise<Array<{ tokenId: string; ballotId: string; proposalId: string; imageUrl: string; metadata: any }>> {
+): Promise<Array<{ tokenId: string; ballotId: string; proposalId: string; imageUrl: string; metadata: any; rarity: string; rarityCode: number }>> {
     try {
         const contract = getRewardNFTContract();
         const tokenIds = await contract.methods.tokensOfOwner(address).call();
@@ -208,14 +208,21 @@ export async function getRewardNFTs(
         }
 
         const toHttp = (uri: string) => uri.replace(/^ipfs:\/\//, "https://gateway.pinata.cloud/ipfs/");
+        const rarityLabels = ["커먼", "레어", "에픽", "레전더리"];
 
         const nfts = await Promise.all(
             (tokenIds as string[]).map(async (tokenId) => {
                 const ballotId = await contract.methods.getBallotId(tokenId).call();
                 const voteRecord = await contract.methods.getVoteRecord(tokenId).call();
+                const rarityRaw = await contract.methods.getRarity(tokenId).call();
 
                 let imageUrl = "";
                 let metadata: any = null;
+                let rarityCode = Number(rarityRaw);
+                if (Number.isNaN(rarityCode) || rarityCode < 0 || rarityCode > 3) {
+                    rarityCode = 0; // fallback to common
+                }
+                const rarityLabel = rarityLabels[rarityCode] || rarityLabels[0];
 
                 // Helper to try multiple gateways
                 const fetchWithFallback = async (cidOrUri: string) => {
@@ -350,6 +357,8 @@ export async function getRewardNFTs(
                     imageUrl,
                     metadata,
                     mintedAt,
+                    rarity: rarityLabel,
+                    rarityCode,
                 };
             })
         );

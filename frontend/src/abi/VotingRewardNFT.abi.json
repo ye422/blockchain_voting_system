@@ -18,8 +18,7 @@
       }
     ],
     "stateMutability": "nonpayable",
-    "type": "constructor",
-    "signature": "constructor"
+    "type": "constructor"
   },
   {
     "inputs": [
@@ -179,8 +178,7 @@
       }
     ],
     "name": "Approval",
-    "type": "event",
-    "signature": "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925"
+    "type": "event"
   },
   {
     "anonymous": false,
@@ -205,8 +203,7 @@
       }
     ],
     "name": "ApprovalForAll",
-    "type": "event",
-    "signature": "0x17307eab39ab6107e8899845ad3d59bd9653f200f220920489ca2b5937696c31"
+    "type": "event"
   },
   {
     "anonymous": false,
@@ -219,8 +216,7 @@
       }
     ],
     "name": "BaseURIUpdated",
-    "type": "event",
-    "signature": "0x6741b2fc379fad678116fe3d4d4b9a1a184ab53ba36b86ad0fa66340b1ab41ad"
+    "type": "event"
   },
   {
     "anonymous": false,
@@ -239,8 +235,7 @@
       }
     ],
     "name": "BatchMetadataUpdate",
-    "type": "event",
-    "signature": "0x6bd5c950a8d8df17f772f5af37cb3655737899cbf903264b9795592da439661c"
+    "type": "event"
   },
   {
     "anonymous": false,
@@ -259,8 +254,7 @@
       }
     ],
     "name": "MascotSet",
-    "type": "event",
-    "signature": "0x372319a940fdc724f1f9ff7874bcfdcfa211c3146fba3ab4e050c3ae87c2aa51"
+    "type": "event"
   },
   {
     "anonymous": false,
@@ -273,8 +267,7 @@
       }
     ],
     "name": "MetadataUpdate",
-    "type": "event",
-    "signature": "0xf8e1a15aba9398e019f0b49df1a4fde98ee17ae345cb5f6b5e2c27f5033e8ce7"
+    "type": "event"
   },
   {
     "anonymous": false,
@@ -293,8 +286,7 @@
       }
     ],
     "name": "MinterUpdated",
-    "type": "event",
-    "signature": "0xb21afb9ce9be0a676f8f317ff0ca072fb89a4f8ce2d1b6fe80f8755c14f1cb19"
+    "type": "event"
   },
   {
     "anonymous": false,
@@ -313,8 +305,7 @@
       }
     ],
     "name": "OwnershipTransferred",
-    "type": "event",
-    "signature": "0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0"
+    "type": "event"
   },
   {
     "anonymous": false,
@@ -342,11 +333,16 @@
         "internalType": "uint256",
         "name": "proposalId",
         "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum VotingRewardNFT.Rarity",
+        "name": "rarity",
+        "type": "uint8"
       }
     ],
     "name": "RewardMinted",
-    "type": "event",
-    "signature": "0x3e1832e1b4e86a04ad89ddc0119770bfe5020004f51cfc8c81a7b187ce55fb9f"
+    "type": "event"
   },
   {
     "anonymous": false,
@@ -371,8 +367,7 @@
       }
     ],
     "name": "Transfer",
-    "type": "event",
-    "signature": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    "type": "event"
   },
   {
     "inputs": [
@@ -390,8 +385,7 @@
     "name": "approve",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function",
-    "signature": "0x095ea7b3"
+    "type": "function"
   },
   {
     "inputs": [
@@ -410,9 +404,7 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true,
-    "signature": "0xaa2fe91b"
+    "type": "function"
   },
   {
     "inputs": [
@@ -431,9 +423,7 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true,
-    "signature": "0x70a08231"
+    "type": "function"
   },
   {
     "inputs": [
@@ -452,9 +442,7 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true,
-    "signature": "0x53137a9d"
+    "type": "function"
   },
   {
     "inputs": [
@@ -473,9 +461,7 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true,
-    "signature": "0x081812fc"
+    "type": "function"
   },
   {
     "inputs": [
@@ -494,9 +480,26 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true,
-    "signature": "0x3d255877"
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getRarity",
+    "outputs": [
+      {
+        "internalType": "enum VotingRewardNFT.Rarity",
+        "name": "rarity",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   },
   {
     "inputs": [
@@ -532,9 +535,7 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true,
-    "signature": "0x2488d909"
+    "type": "function"
   },
   {
     "inputs": [
@@ -558,9 +559,7 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true,
-    "signature": "0xe985e9c5"
+    "type": "function"
   },
   {
     "inputs": [
@@ -589,8 +588,7 @@
       }
     ],
     "stateMutability": "nonpayable",
-    "type": "function",
-    "signature": "0xba7aef43"
+    "type": "function"
   },
   {
     "inputs": [],
@@ -603,9 +601,7 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true,
-    "signature": "0x06fdde03"
+    "type": "function"
   },
   {
     "inputs": [],
@@ -618,9 +614,7 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true,
-    "signature": "0x8da5cb5b"
+    "type": "function"
   },
   {
     "inputs": [
@@ -639,17 +633,14 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true,
-    "signature": "0x6352211e"
+    "type": "function"
   },
   {
     "inputs": [],
     "name": "renounceOwnership",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function",
-    "signature": "0x715018a6"
+    "type": "function"
   },
   {
     "inputs": [
@@ -672,8 +663,7 @@
     "name": "safeTransferFrom",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function",
-    "signature": "0x42842e0e"
+    "type": "function"
   },
   {
     "inputs": [
@@ -701,8 +691,7 @@
     "name": "safeTransferFrom",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function",
-    "signature": "0xb88d4fde"
+    "type": "function"
   },
   {
     "inputs": [
@@ -720,8 +709,7 @@
     "name": "setApprovalForAll",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function",
-    "signature": "0xa22cb465"
+    "type": "function"
   },
   {
     "inputs": [
@@ -734,8 +722,7 @@
     "name": "setBaseURI",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function",
-    "signature": "0x55f804b3"
+    "type": "function"
   },
   {
     "inputs": [
@@ -753,8 +740,7 @@
     "name": "setMascot",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function",
-    "signature": "0x7caf9b27"
+    "type": "function"
   },
   {
     "inputs": [
@@ -772,8 +758,7 @@
     "name": "setMinterAuthorization",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function",
-    "signature": "0x378c2b86"
+    "type": "function"
   },
   {
     "inputs": [
@@ -792,9 +777,7 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true,
-    "signature": "0x01ffc9a7"
+    "type": "function"
   },
   {
     "inputs": [],
@@ -807,9 +790,26 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true,
-    "signature": "0x95d89b41"
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "tokenRarity",
+    "outputs": [
+      {
+        "internalType": "enum VotingRewardNFT.Rarity",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   },
   {
     "inputs": [
@@ -828,9 +828,7 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true,
-    "signature": "0xb765e909"
+    "type": "function"
   },
   {
     "inputs": [
@@ -849,9 +847,7 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true,
-    "signature": "0xc87b56dd"
+    "type": "function"
   },
   {
     "inputs": [
@@ -870,9 +866,7 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true,
-    "signature": "0x8462151c"
+    "type": "function"
   },
   {
     "inputs": [],
@@ -885,9 +879,7 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true,
-    "signature": "0x18160ddd"
+    "type": "function"
   },
   {
     "inputs": [
@@ -910,8 +902,7 @@
     "name": "transferFrom",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function",
-    "signature": "0x23b872dd"
+    "type": "function"
   },
   {
     "inputs": [
@@ -924,8 +915,7 @@
     "name": "transferOwnership",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function",
-    "signature": "0xf2fde38b"
+    "type": "function"
   },
   {
     "inputs": [
@@ -954,8 +944,6 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function",
-    "constant": true,
-    "signature": "0x268b8c69"
+    "type": "function"
   }
 ]

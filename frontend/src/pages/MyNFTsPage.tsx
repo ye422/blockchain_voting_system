@@ -135,12 +135,44 @@ export default function MyNFTsPage() {
     const nextBadge = badges.find(b => !b.earned);
     const nftsUntilNext = nextBadge ? nextBadge.requirement - nfts.length : 0;
 
-    // NFT 레어도 계산
-    const getRarity = (tokenId: number) => {
-        if (tokenId <= 10) return { name: "레전더리", color: "#fbbf24" };
-        if (tokenId <= 50) return { name: "에픽", color: "#a78bfa" };
-        if (tokenId <= 200) return { name: "레어", color: "#60a5fa" };
-        return { name: "커먼", color: "#94a3b8" };
+    // NFT 레어도 표시 (온체인 rarity 값 사용)
+    const rarityColorMap: Record<string, string> = {
+        "레전더리": "#fbbf24",
+        "에픽": "#a78bfa",
+        "레어": "#60a5fa",
+        "커먼": "#94a3b8",
+        "legendary": "#fbbf24",
+        "epic": "#a78bfa",
+        "rare": "#60a5fa",
+        "common": "#94a3b8",
+    };
+
+    const getRarityDisplay = (rarity: string | number | undefined) => {
+        const labels = ["커먼", "레어", "에픽", "레전더리"];
+
+        if (rarity === undefined || rarity === null) {
+            return { name: "커먼", color: rarityColorMap["커먼"] };
+        }
+        // Accept numeric codes (0-3) or string labels
+        if (typeof rarity === "number") {
+            const name = labels[rarity] || "커먼";
+            return { name, color: rarityColorMap[name] || rarityColorMap["커먼"] };
+        }
+        // Support numeric strings (e.g., "3")
+        const numeric = Number(rarity);
+        if (!Number.isNaN(numeric)) {
+            const name = labels[numeric] || "커먼";
+            return { name, color: rarityColorMap[name] || rarityColorMap["커먼"] };
+        }
+        // Direct match for Korean labels
+        if (labels.includes(rarity)) {
+            return { name: rarity, color: rarityColorMap[rarity] || rarityColorMap["커먼"] };
+        }
+        const normalized = rarity.toLowerCase();
+        if (normalized.includes("legend")) return { name: "레전더리", color: rarityColorMap["레전더리"] };
+        if (normalized.includes("epic")) return { name: "에픽", color: rarityColorMap["에픽"] };
+        if (normalized.includes("rare")) return { name: "레어", color: rarityColorMap["레어"] };
+        return { name: "커먼", color: rarityColorMap["커먼"] };
     };
 
     // NFT 상세 보기 모달 열기
@@ -264,7 +296,7 @@ export default function MyNFTsPage() {
                         <h2 className="section-title">🎴 내 NFT ({nfts.length})</h2>
                         <div className="nft-grid">
                             {nfts.map((nft) => {
-                                const rarity = getRarity(nft.tokenId);
+                                const rarity = getRarityDisplay(nft.rarity ?? nft.rarityCode);
                                 return (
                                     <div key={nft.tokenId} className="nft-card">
                                         {/* NFT 이미지 */}
@@ -325,9 +357,9 @@ export default function MyNFTsPage() {
                                     <h2 className="nft-modal-title">{selectedNFT.metadata?.name || `NFT #${selectedNFT.tokenId}`}</h2>
                                     <span
                                         className="nft-modal-rarity"
-                                        style={{ color: getRarity(selectedNFT.tokenId).color }}
+                                        style={{ color: getRarityDisplay(selectedNFT.rarity ?? selectedNFT.rarityCode).color }}
                                     >
-                                        {getRarity(selectedNFT.tokenId).name}
+                                        {getRarityDisplay(selectedNFT.rarity ?? selectedNFT.rarityCode).name}
                                     </span>
                                 </div>
 

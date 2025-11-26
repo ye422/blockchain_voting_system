@@ -1010,7 +1010,7 @@ export function VotingApp() {
         walletAddress: activeAccount,
         ballotId: activeBallot?.id ?? "",
         proposalId: candidate.id,
-        txHash: receipt.transactionHash,
+        txHash: toHashString(receipt.transactionHash as any),
         blockNumber: toNumberOrNull(receipt.blockNumber),
         status: "success",
         chainId: getConfig().CHAIN_ID,
@@ -2127,7 +2127,8 @@ async function syncVoteReceiptToSupabase(payload: ReceiptSyncPayload): Promise<v
       ? sanitizeReceiptForStorage(payload.rawReceipt)
       : null;
 
-    const response = await fetch("/api/save-vote-receipt", {
+    const apiBase = process.env.REACT_APP_API_BASE_URL || "";
+    const response = await fetch(`${apiBase}/api/save-vote-receipt`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
